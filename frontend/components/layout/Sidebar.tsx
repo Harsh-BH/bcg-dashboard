@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { Fragment, useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -238,9 +238,8 @@ export function Sidebar() {
                   ...w.mappings.map((m) => `"${m.original}" → "${m.suggested}"`),
                 ] : [];
                 return (
-                  <>
+                  <Fragment key={f.name}>
                     <li
-                      key={f.name}
                       className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150"
                     >
                       <FileSpreadsheet size={13} className="text-emerald-400 shrink-0" />
@@ -262,7 +261,7 @@ export function Sidebar() {
                         </div>
                       </li>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </ul>
