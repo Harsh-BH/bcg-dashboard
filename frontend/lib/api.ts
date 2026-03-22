@@ -17,7 +17,7 @@ export async function processFiles(payload: ProcessPayload): Promise<ProcessResp
   const form = new FormData();
 
   for (const f of payload.hrmsFiles) {
-    form.append("hrms_files", f);
+    form.append("hrms_files", f, f.name);
   }
   if (payload.spartanFile) form.append("spartan_file", payload.spartanFile);
   if (payload.payrollFile) form.append("payroll_file", payload.payrollFile);
