@@ -1,0 +1,77 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.75rem;
+  --background: 210 20% 98%;
+  --foreground: 222 47% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 10%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 16% 95%;
+  --secondary-foreground: 222 47% 10%;
+  --muted: 215 16% 95%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 215 16% 92%;
+  --accent-foreground: 222 47% 10%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 217 91% 60%;
+
+  /* ── Semantic tokens for table row colours ─────────────────── */
+  --table-header:  336 100% 18%;   /* #5A002F  maroon header  */
+  --row-grand:     197  52% 88%;   /* #D6ECF3  grand-total tint */
+  --row-header:     44  76% 83%;   /* #F6E7B2  section-header tint */
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* expose table tokens as Tailwind colour utilities */
+  --color-table-header: hsl(var(--table-header));
+  --color-row-grand: hsl(var(--row-grand));
+  --color-row-header: hsl(var(--row-header));
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, #dbeafe55 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, #e0f2fe44 0%, transparent 55%),
+    linear-gradient(160deg, #f8fafc 0%, #eef2f7 55%, #f1f5f9 100%);
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
