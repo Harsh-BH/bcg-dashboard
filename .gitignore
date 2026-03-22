@@ -32,3 +32,4 @@ Thumbs.db
 
 # Mock data outputs (regenerate with generate_mock.py)
 mock_data/*.xlsx
+.vercel
