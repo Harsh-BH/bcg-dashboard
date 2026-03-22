@@ -16,7 +16,8 @@ const severityConfig = {
 };
 
 export function AnomalyAlertList({ tab }: Props) {
-  const anomalies = useDashboardStore((s) => s.anomalies.filter((a) => a.tab === tab));
+  const allAnomalies = useDashboardStore((s) => s.anomalies);
+  const anomalies = allAnomalies.filter((a) => a.tab === tab);
   const anomalyLoading = useDashboardStore((s) => s.anomalyLoading);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
