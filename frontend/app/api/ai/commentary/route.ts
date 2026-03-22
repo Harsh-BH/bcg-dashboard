@@ -1,6 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM = `You are a senior HR analytics consultant at BCG writing an executive headcount commentary.
 Write in a professional, data-driven tone. Use numbers precisely. Highlight trends, risks, and notable movements.
@@ -16,11 +16,11 @@ export async function POST(request: Request) {
   try {
     const { dashboardContext } = await request.json() as { dashboardContext: string };
 
-    const stream = await client.messages.create({
-      model: "claude-sonnet-4-6",
+    const stream = await client.chat.completions.create({
+      model: "gpt-4o",
       max_tokens: 1500,
-      system: SYSTEM,
       messages: [
+        { role: "system", content: SYSTEM },
         {
           role: "user",
           content: `Generate a Month-over-Month headcount commentary for the following BCG HR data:\n\n${dashboardContext}`,
@@ -32,13 +32,12 @@ export async function POST(request: Request) {
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
       async start(controller) {
-        for await (const event of stream) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            const chunk = `data: ${JSON.stringify({ text: event.delta.text })}\n\n`;
-            controller.enqueue(encoder.encode(chunk));
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content ?? "";
+          if (text) {
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ text })}\n\n`)
+            );
           }
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
