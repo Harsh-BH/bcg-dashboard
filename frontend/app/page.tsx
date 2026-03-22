@@ -140,10 +140,6 @@ function DashboardContent() {
         title="Open AI chat"
       >
         <MessageSquare size={20} className="transition-transform duration-200 group-hover:scale-110" />
-        {/* pulse ring */}
-        <span className="absolute inset-0 rounded-2xl animate-ping opacity-20 pointer-events-none"
-          style={{ background: "linear-gradient(135deg, #5A002F, #8B0045)" }}
-        />
         {anomalies.length > 0 && (
           <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-md ring-2 ring-white">
             {anomalies.length > 9 ? "9+" : anomalies.length}
