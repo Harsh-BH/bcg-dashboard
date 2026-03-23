@@ -11,66 +11,28 @@ import { validateHrmsHeaders } from "@/lib/hrms-validator";
 import type { ValidationResult } from "@/lib/types";
 import {
   BarChart3, FolderOpen, Upload, X,
-  AlertCircle, Loader2, FileSpreadsheet, CheckCircle2, FolderSync, ShieldAlert,
+  AlertCircle, Loader2, FileSpreadsheet, CheckCircle2, ShieldAlert,
 } from "lucide-react";
-
-const HRMS_RE = /^HRMS_\d{4}_(0[1-9]|1[0-2])_(0[1-9]|[12]\d|3[01])\.xlsx$/i;
-
-// ── Read all files from a dropped item (file or folder) recursively ──────────
-async function extractFiles(item: FileSystemEntry): Promise<File[]> {
-  if (item.isFile) {
-    return new Promise<File[]>((resolve) => {
-      (item as FileSystemFileEntry).file(
-        (f) => resolve([f]),
-        () => resolve([]),
-      );
-    });
-  }
-  if (item.isDirectory) {
-    const reader = (item as FileSystemDirectoryEntry).createReader();
-    // readEntries only returns up to 100 entries per call; loop until exhausted
-    const allEntries: FileSystemEntry[] = [];
-    await new Promise<void>((resolve) => {
-      const readBatch = () => {
-        reader.readEntries((entries) => {
-          if (!entries.length) { resolve(); return; }
-          allEntries.push(...entries);
-          readBatch();
-        }, () => resolve());
-      };
-      readBatch();
-    });
-    const nested = await Promise.all(allEntries.map(extractFiles));
-    return nested.flat();
-  }
-  return [];
-}
+// ValidationResult.mappings is unused after validator simplification — kept for type compat
 
 async function getFilesFromDrop(dt: DataTransfer): Promise<File[]> {
-  const items = Array.from(dt.items);
-  const entries = items.map((i) => i.webkitGetAsEntry?.()).filter(Boolean) as FileSystemEntry[];
-  if (entries.length) {
-    const nested = await Promise.all(entries.map(extractFiles));
-    return nested.flat();
-  }
-  // Fallback: plain files (no webkitGetAsEntry support)
-  return Array.from(dt.files);
+  return Array.from(dt.files).filter((f) => f.name.toLowerCase().endsWith(".xlsx"));
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const [hrmsFiles, setHrmsFiles] = useState<File[]>([]);
-  const [skipped, setSkipped]     = useState(0);
   const [columnWarnings, setColumnWarnings] = useState<Map<string, ValidationResult>>(new Map());
   const [spartanFile, setSpartanFile] = useState<File | null>(null);
   const [payrollFile, setPayrollFile] = useState<File | null>(null);
+  const [conneqtMappingFile, setConneqtMappingFile] = useState<File | null>(null);
   const [payrollStart, setPayrollStart] = useState("");
   const [payrollEnd,   setPayrollEnd]   = useState("");
   const [isDragOver,   setIsDragOver]   = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  const folderInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const d = new Date();
@@ -80,26 +42,23 @@ export function Sidebar() {
 
   const { mutate, isPending, isError, error } = useDashboardData();
 
-  // ── Add HRMS files, filtering for pattern, deduplicating ────────────────
+  // ── Add HRMS files, deduplicating ────────────────────────────────────────
   const addHrmsFiles = (files: File[]) => {
-    const valid   = files.filter((f) => HRMS_RE.test(f.name));
-    const invalid = files.filter((f) => !HRMS_RE.test(f.name) && f.name.endsWith(".xlsx"));
-    setSkipped(invalid.length);
-    if (!valid.length) return;
+    const xlsx = files.filter((f) => f.name.toLowerCase().endsWith(".xlsx"));
+    if (!xlsx.length) return;
     setValidationError(null);
     setHrmsFiles((prev) => {
       const existing = new Set(prev.map((f) => f.name));
-      const newFiles = valid.filter((f) => !existing.has(f.name));
+      const newFiles = xlsx.filter((f) => !existing.has(f.name));
       runValidation(newFiles);
       return [...prev, ...newFiles].sort((a, b) => a.name.localeCompare(b.name));
     });
   };
 
-  // ── Folder input (webkitdirectory) ───────────────────────────────────────
-  const handleFolderInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    addHrmsFiles(files);
-    e.target.value = ""; // allow re-selecting same folder
+  // ── File input (multi-select) ─────────────────────────────────────────────
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    addHrmsFiles(Array.from(e.target.files ?? []));
+    e.target.value = "";
   };
 
   // ── Drag-and-drop ────────────────────────────────────────────────────────
@@ -135,7 +94,7 @@ export function Sidebar() {
     });
   }, []);
 
-  const clearAll = () => { setHrmsFiles([]); setSkipped(0); setColumnWarnings(new Map()); };
+  const clearAll = () => { setHrmsFiles([]); setColumnWarnings(new Map()); };
 
   const handleGenerate = () => {
     if (hrmsFiles.length < 2) {
@@ -143,7 +102,7 @@ export function Sidebar() {
       return;
     }
     setValidationError(null);
-    mutate({ hrmsFiles, spartanFile, payrollFile, payrollStart, payrollEnd });
+    mutate({ hrmsFiles, spartanFile, payrollFile, conneqtMappingFile, payrollStart, payrollEnd });
   };
 
   const errorMsg =
@@ -194,7 +153,7 @@ export function Sidebar() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => folderInputRef.current?.click()}
+            onClick={() => fileInputRef.current?.click()}
             className={[
               "border-2 border-dashed rounded-xl p-5 text-center cursor-pointer",
               "transition-all duration-200 select-none",
@@ -203,15 +162,14 @@ export function Sidebar() {
                 : "border-slate-600 hover:border-slate-400 hover:bg-slate-800/50",
             ].join(" ")}
           >
-            {/* Hidden folder input */}
+            {/* Hidden multi-file input */}
             <input
-              ref={folderInputRef}
+              ref={fileInputRef}
               type="file"
-              // @ts-expect-error – webkitdirectory is non-standard but widely supported
-              webkitdirectory=""
+              accept=".xlsx"
               multiple
               className="sr-only"
-              onChange={handleFolderInput}
+              onChange={handleFileInput}
             />
 
             <div className={`mx-auto mb-2 w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -220,11 +178,11 @@ export function Sidebar() {
               <FolderOpen size={20} className={isDragOver ? "text-blue-400" : "text-slate-400"} />
             </div>
             <p className="text-slate-300 text-xs font-semibold">
-              {isDragOver ? "Release to load folder…" : "Drop HRMS folder here"}
+              {isDragOver ? "Release to add files…" : "Drop HRMS files here"}
             </p>
-            <p className="text-slate-500 text-xs mt-0.5">or click to browse</p>
+            <p className="text-slate-500 text-xs mt-0.5">or click to browse (multi-select)</p>
             <p className="text-slate-600 text-xs mt-2 leading-relaxed">
-              Picks all <span className="font-mono text-slate-500">HRMS_YYYY_MM_DD.xlsx</span> files automatically
+              Any <span className="font-mono text-slate-500">.xlsx</span> files accepted
             </p>
           </div>
 
@@ -233,16 +191,11 @@ export function Sidebar() {
             <ul className="mt-2 space-y-1">
               {hrmsFiles.map((f) => {
                 const w = columnWarnings.get(f.name);
-                const issues = w ? [
-                  ...w.missing.map((m: string) => `Missing col: ${m}`),
-                  ...w.mappings.map((m) => `"${m.original}" → "${m.suggested}"`),
-                ] : [];
+                const missing = w?.missing ?? [];
                 return (
                   <Fragment key={f.name}>
-                    <li
-                      className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150"
-                    >
-                      <FileSpreadsheet size={13} className="text-emerald-400 shrink-0" />
+                    <li className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150">
+                      <FileSpreadsheet size={13} className={missing.length ? "text-amber-400 shrink-0" : "text-emerald-400 shrink-0"} />
                       <span className="text-slate-300 text-xs flex-1 truncate">{f.name}</span>
                       <button
                         onClick={() => removeHrms(f.name)}
@@ -251,12 +204,12 @@ export function Sidebar() {
                         <X size={11} />
                       </button>
                     </li>
-                    {issues.length > 0 && (
+                    {missing.length > 0 && (
                       <li key={`${f.name}-warn`} className="bg-amber-900/30 border border-amber-700/40 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
                         <div className="flex items-start gap-1.5">
                           <ShieldAlert size={11} className="text-amber-400 shrink-0 mt-0.5" />
                           <div className="text-amber-300 text-[10px] leading-relaxed">
-                            {issues.map((issue, idx) => <div key={idx}>{issue}</div>)}
+                            {missing.map((m: string) => <div key={m}>Missing: {m}</div>)}
                           </div>
                         </div>
                       </li>
@@ -268,8 +221,8 @@ export function Sidebar() {
           )}
 
           {/* Status row */}
-          <div className="mt-2 space-y-0.5">
-            {hrmsFiles.length > 0 && (
+          {hrmsFiles.length > 0 && (
+            <div className="mt-2">
               <p className="text-xs flex items-center gap-1.5">
                 {hrmsFiles.length >= 2
                   ? <CheckCircle2 size={11} className="text-emerald-400 shrink-0" />
@@ -280,14 +233,37 @@ export function Sidebar() {
                   {hrmsFiles.length < 2 && " (need ≥ 2)"}
                 </span>
               </p>
-            )}
-            {skipped > 0 && (
-              <p className="text-slate-600 text-xs flex items-center gap-1.5">
-                <FolderSync size={11} className="shrink-0" />
-                {skipped} non-HRMS file{skipped !== 1 ? "s" : ""} skipped
-              </p>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+
+        <Separator className="bg-slate-700/60" />
+
+        {/* ── Conneqt Mapping ───────────────────────────────────── */}
+        <div>
+          <Label className="text-slate-200 font-semibold text-sm mb-2 block">
+            Conneqt Cost Mapping{" "}
+            <span className="text-slate-500 font-normal">(optional)</span>
+          </Label>
+          <label className="flex items-center gap-2 cursor-pointer bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2.5 transition-colors duration-150">
+            <Upload size={14} className="text-slate-400 shrink-0" />
+            <span className={`text-xs flex-1 truncate ${conneqtMappingFile ? "text-slate-200" : "text-slate-400"}`}>
+              {conneqtMappingFile ? conneqtMappingFile.name : "Upload mapping .xlsx"}
+            </span>
+            {conneqtMappingFile && <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />}
+            <input
+              type="file" accept=".xlsx" className="sr-only"
+              onChange={(e) => setConneqtMappingFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+          {conneqtMappingFile && (
+            <button
+              onClick={() => setConneqtMappingFile(null)}
+              className="text-xs text-slate-500 hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
+            >
+              <X size={11} /> Remove
+            </button>
+          )}
         </div>
 
         <Separator className="bg-slate-700/60" />

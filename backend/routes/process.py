@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
-from logic.constants import HR_FILE_RE
 from logic.snapshot import (
     load_snapshot,
     prepare_hr_snapshot,
@@ -108,46 +107,43 @@ async def process_dashboard(
     hrms_files: list[UploadFile] = File(...),
     spartan_file: Optional[UploadFile] = File(None),
     payroll_file: Optional[UploadFile] = File(None),
+    conneqt_mapping_file: Optional[UploadFile] = File(None),
     payroll_start: Optional[str] = Form(None),
     payroll_end: Optional[str] = Form(None),
 ):
     warnings: list[dict] = []
 
-    # ── 1. Parse and validate HRMS uploads ────────────────────────────────────
+    # ── 1. Parse HRMS uploads (no strict filename format required) ─────────────
     if len(hrms_files) < 2:
         raise HTTPException(422, "At least 2 HRMS files are required.")
 
     snapshots_raw: list[dict] = []
-    invalid_names: list[str] = []
 
-    for uf in hrms_files:
-        parsed = validate_hrms_filename(uf.filename or "")
-        if parsed is None:
-            invalid_names.append(uf.filename or "")
-            continue
-        year, month, day = parsed
+    for i, uf in enumerate(hrms_files):
         file_bytes = await uf.read()
+        fname = uf.filename or f"file_{i + 1}.xlsx"
+        parsed = validate_hrms_filename(fname)
+        if parsed is not None:
+            year, month, day = parsed
+            label = format_snapshot_date(year, month, day)
+        else:
+            # No date in filename — use today's date for processing, filename stem as label
+            today = date.today()
+            year, month, day = today.year, today.month, today.day
+            stem = fname.rsplit(".", 1)[0]
+            label = stem or f"Snapshot {i + 1}"
         snapshots_raw.append({
-            "filename": uf.filename,
+            "filename": fname,
             "file_bytes": file_bytes,
             "year": year,
             "month": month,
             "day": day,
             "month_key": (year, month, day),
-            "month_short": format_snapshot_date(year, month, day),
+            "month_short": label,
+            "sort_index": i,
         })
 
-    if invalid_names:
-        raise HTTPException(
-            422,
-            f"Invalid HRMS filename(s): {invalid_names}. "
-            "Required format: HRMS_YYYY_MM_DD.xlsx",
-        )
-
-    if len(snapshots_raw) < 2:
-        raise HTTPException(422, "At least 2 valid HRMS files are required.")
-
-    snapshots_raw.sort(key=lambda x: x["month_key"])
+    snapshots_raw.sort(key=lambda x: (x["month_key"], x["sort_index"]))
     for i, s in enumerate(snapshots_raw):
         s["snapshot_order"] = i
 
@@ -325,8 +321,22 @@ async def process_dashboard(
         except Exception:
             pass
 
+    # Load Conneqt cost-code cluster mapping if provided
+    cluster_mapping = None
+    if conneqt_mapping_file is not None:
+        import os
+        import tempfile
+        mapping_bytes = await conneqt_mapping_file.read()
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                tmp.write(mapping_bytes)
+                tmp_path = tmp.name
+            cluster_mapping = load_conneqt_cluster_mapping(tmp_path)
+            os.unlink(tmp_path)
+        except Exception as e:
+            warnings.append({"file": conneqt_mapping_file.filename, "message": f"Mapping file error: {e}"})
+
     # Trend by cluster (no unknown grade overrides at this stage — frontend will re-request if needed)
-    cluster_mapping = None  # No folder-based mapping when using uploads; could add as optional upload
     trend_long_df = span_trend_ic_tl_by_cluster(span_snapshots, cluster_mapping, {})
 
     # Service line tables

@@ -9,6 +9,7 @@ export interface ProcessPayload {
   hrmsFiles: File[];
   spartanFile?: File | null;
   payrollFile?: File | null;
+  conneqtMappingFile?: File | null;
   payrollStart?: string;
   payrollEnd?: string;
 }
@@ -21,6 +22,7 @@ export async function processFiles(payload: ProcessPayload): Promise<ProcessResp
   }
   if (payload.spartanFile) form.append("spartan_file", payload.spartanFile);
   if (payload.payrollFile) form.append("payroll_file", payload.payrollFile);
+  if (payload.conneqtMappingFile) form.append("conneqt_mapping_file", payload.conneqtMappingFile);
   if (payload.payrollStart) form.append("payroll_start", payload.payrollStart);
   if (payload.payrollEnd) form.append("payroll_end", payload.payrollEnd);
 
