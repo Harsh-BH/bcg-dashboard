@@ -195,7 +195,7 @@ export function Sidebar() {
                 return (
                   <Fragment key={f.name}>
                     <li className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150">
-                      <FileSpreadsheet size={13} className={missing.length ? "text-amber-400 shrink-0" : "text-emerald-400 shrink-0"} />
+                      <FileSpreadsheet size={13} className={missing.length ? "text-red-400 shrink-0" : (w?.recommended?.length ? "text-amber-400 shrink-0" : "text-emerald-400 shrink-0")} />
                       <span className="text-slate-300 text-xs flex-1 truncate">{f.name}</span>
                       <button
                         onClick={() => removeHrms(f.name)}
@@ -205,11 +205,23 @@ export function Sidebar() {
                       </button>
                     </li>
                     {missing.length > 0 && (
-                      <li key={`${f.name}-warn`} className="bg-amber-900/30 border border-amber-700/40 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
+                      <li key={`${f.name}-error`} className="bg-red-900/30 border border-red-700/40 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
+                        <div className="flex items-start gap-1.5">
+                          <ShieldAlert size={11} className="text-red-400 shrink-0 mt-0.5" />
+                          <div className="text-red-300 text-[10px] leading-relaxed">
+                            <div className="font-semibold mb-0.5">Required columns missing:</div>
+                            {missing.map((m: string) => <div key={m}>• {m}</div>)}
+                          </div>
+                        </div>
+                      </li>
+                    )}
+                    {missing.length === 0 && (w?.recommended ?? []).length > 0 && (
+                      <li key={`${f.name}-rec`} className="bg-amber-900/20 border border-amber-700/30 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
                         <div className="flex items-start gap-1.5">
                           <ShieldAlert size={11} className="text-amber-400 shrink-0 mt-0.5" />
                           <div className="text-amber-300 text-[10px] leading-relaxed">
-                            {missing.map((m: string) => <div key={m}>Missing: {m}</div>)}
+                            <div className="font-semibold mb-0.5">Optional columns absent (reduced functionality):</div>
+                            {(w?.recommended ?? []).map((m: string) => <div key={m}>• {m}</div>)}
                           </div>
                         </div>
                       </li>

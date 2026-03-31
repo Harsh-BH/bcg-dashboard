@@ -128,7 +128,8 @@ export interface ColumnMapping {
 }
 
 export interface ValidationResult {
-  missing: string[];
+  missing: string[];          // truly mandatory columns absent → blocks processing
+  recommended: string[];      // optional but functional columns absent → amber warning
   mappings: ColumnMapping[];
   valid: boolean;
 }

@@ -17,6 +17,7 @@ from logic.table_builders import (
     build_hier_table,
     build_metric_trend,
     build_reconciliation_table,
+    build_reconciliation_salary_table,
     counts_from_ids,
     expand_bucket_selection,
     people_for_ids_and_buckets,
@@ -288,10 +289,24 @@ async def process_dashboard(
 
             all_buckets = sorted(set(base_s["df"]["BUCKET"]).union(set(end_s["df"]["BUCKET"])))
 
+            salary_table = build_reconciliation_salary_table(
+                base_df=base_s["df"],
+                end_df=end_s["df"],
+                spartan_exit_ids=spartan_exit_ids,
+                bau_attrition_ids=bau_attrition_ids,
+                new_hire_ids=new_hire_ids,
+                base_label=f"{base_s['month_short']} (Baseline)",
+                spartan_label=f"-Spartan exits till {end_s['month_short']}",
+                bau_label="-BAU attrition",
+                hire_label="-New hires",
+                end_label=f"{end_s['month_short']} (End-point)",
+            )
+
             reconciliation_tables[key] = {
                 "base_label": base_s["month_short"],
                 "end_label": end_s["month_short"],
                 "rows": _recon_rows_to_dicts(rec_table),
+                "salary_rows": _recon_rows_to_dicts(salary_table),
                 "baseline_people": _people_by_bucket(base_s["df"], base_ids, all_buckets),
                 "spartan_exit_people": _people_by_bucket(base_s["df"], spartan_exit_ids, all_buckets),
                 "bau_attrition_people": _people_by_bucket(base_s["df"], bau_attrition_ids, all_buckets),

@@ -1,68 +1,52 @@
 import * as XLSX from "xlsx";
 import type { ValidationResult } from "@/lib/types";
 
-// Required HRMS columns (must match backend HR_MANDATORY_STD after soft normalization)
+// Truly mandatory columns — matches backend HR_MANDATORY_STD (app.py ensure_cols).
+// Everything else is optional; backend uses `if "X" in df.columns` guards.
 const REQUIRED_COLUMNS = [
   "EMPLOYEE ID",
-  "ASSIGNMENT NUMBER",
-  "NAME",
-  "DATE OF JOINING",
-  "EMPLOYEE TYPE",
-  "LEVEL",
-  "DESIGNATION",
-  "BILLABLE NON BILLABLE",
-  "WORK LOCATION",
-  "STATE",
-  "REGION",
-  "COUNTRY",
-  "EMPLOYEE STATUS",
-  "EMPLOYMENT TYPE",
   "BUSINESS UNIT",
   "BUSINESS",
-  "DIVISION",
-  "PROCESS",
-  "SUB PROCESS",
-  "ORGANIZATION TYPE",
-  "JOB FUNCTION",
-  "SUB FUNCTION",
-  "JOB FAMILY",
-  "SUB FAMILY",
-  "COST CENTER",
-  "COST CENTER NAME",
-  "MANAGER1 ECODE",
-  "MANAGER1 EMPNAME",
 ];
 
-// Aliases for common variations (no underscore variants needed — normalizeCol handles those)
+// Recommended columns — used by backend logic but backend handles absence gracefully.
+// Shown as warnings (amber), not errors, so users know what improves functionality.
+export const RECOMMENDED_COLUMNS = [
+  "EMPLOYEE TYPE",   // filters to C/E employees
+  "GRADE",           // span IC/TL/M1+ classification
+  "LEVEL",           // span classification fallback
+  "DESIGNATION",     // span TL designation matching
+  "MANAGER1 ECODE",  // span hierarchy / reportee count
+  "SEPARATION",      // filters out separated employees
+  "OTC PA",          // salary walk (OTC PA → ₹ Cr)
+  "PROCESS",         // service line classification
+  "COST CENTER",     // cluster mapping
+  "DIVISION",        // service line sub-classification
+  "JOB FUNCTION",    // service line sub-classification
+  "ACCOUNT NAME",    // account-wise span tables
+];
+
+// Aliases for common variations (normalizeCol already handles _ → space, lowercasing).
+// ACCOUNT NAME and CUSTOMER NAME are the SAME field — if either is present it counts.
 const ALIASES: Record<string, string[]> = {
-  "EMPLOYEE ID":          ["EMP ID", "EMPID", "EMPLOYEE CODE", "EMPLOYEE NO", "EMPLOYEE NUMBER"],
-  "ASSIGNMENT NUMBER":    ["ASSIGNMENT NO", "ASSIGN NUMBER", "ASSIGN NO"],
-  "NAME":                 ["EMPLOYEE NAME", "EMP NAME", "FULL NAME"],
-  "DATE OF JOINING":      ["DOJ", "JOINING DATE", "JOIN DATE"],
-  "EMPLOYEE TYPE":        ["EMP TYPE"],
-  "LEVEL":                ["EMPLOYEE LEVEL"],
-  "DESIGNATION":          ["DESIG", "DESIGNATION NAME", "ROLE", "TITLE"],
-  "BILLABLE NON BILLABLE":["BILLABLE NON-BILLABLE", "BILLABLE/NON BILLABLE", "BILLED NON BILLED", "BILLABLE"],
-  "WORK LOCATION":        ["WORKLOCATION", "OFFICE LOCATION", "LOCATION"],
-  "STATE":                ["EMP STATE"],
-  "REGION":               ["EMP REGION"],
-  "COUNTRY":              ["EMP COUNTRY"],
-  "EMPLOYEE STATUS":      ["EMP STATUS", "EMPLOYMENT STATUS"],
-  "EMPLOYMENT TYPE":      ["CONTRACT TYPE"],
-  "BUSINESS UNIT":        ["BU"],
-  "BUSINESS":             [],
-  "DIVISION":             ["EMP DIVISION", "DIVISION NAME", "DIV"],
-  "PROCESS":              ["PROCESS NAME"],
-  "SUB PROCESS":          ["SUBPROCESS"],
-  "ORGANIZATION TYPE":    ["ORG TYPE", "ORGANISATION TYPE"],
-  "JOB FUNCTION":         ["JOBFUNCTION", "FUNCTION", "JOB ROLE"],
-  "SUB FUNCTION":         ["SUBFUNCTION"],
-  "JOB FAMILY":           ["JOBFAMILY"],
-  "SUB FAMILY":           ["SUBFAMILY"],
-  "COST CENTER":          ["COSTCENTER", "COST CENTRE", "CC"],
-  "COST CENTER NAME":     ["COSTCENTERNAME", "COST CENTRE NAME"],
-  "MANAGER1 ECODE":       ["MANAGER ECODE", "REPORTING MANAGER ID", "MANAGER ID"],
-  "MANAGER1 EMPNAME":     ["MANAGER EMPNAME", "REPORTING MANAGER NAME", "MANAGER NAME"],
+  // ── Required ──────────────────────────────────────────────────────────────
+  "EMPLOYEE ID":           ["EMP ID", "EMPID", "EMPLOYEE CODE", "EMPLOYEE NO", "EMPLOYEE NUMBER"],
+  "BUSINESS UNIT":         ["BU"],
+  "BUSINESS":              [],
+  // ── Recommended ───────────────────────────────────────────────────────────
+  "EMPLOYEE TYPE":         ["EMP TYPE"],
+  "GRADE":                 ["EMPLOYEE GRADE", "EMP GRADE"],
+  "LEVEL":                 ["EMPLOYEE LEVEL"],
+  "DESIGNATION":           ["DESIG", "DESIGNATION NAME", "ROLE", "TITLE"],
+  "MANAGER1 ECODE":        ["MANAGER ECODE", "REPORTING MANAGER ID", "REPORTING MANAGER", "MANAGER ID", "MANAGER EMP ID", "MANAGER EMPLOYEE ID"],
+  "SEPARATION":            ["SEPARATIONS", "SEPARATION STATUS"],
+  "OTC PA":                ["OTC P.A", "OTC/PA", "OTCPA"],
+  "PROCESS":               ["PROCESS NAME", "PROCESS DESCRIPTION"],
+  "COST CENTER":           ["COSTCENTER", "COST CENTRE", "CC", "COST CENTRE CODE"],
+  "DIVISION":              ["EMP DIVISION", "DIVISION NAME", "DIV"],
+  "JOB FUNCTION":          ["JOBFUNCTION", "FUNCTION", "JOB ROLE", "JOB FUNCTION NAME", "EMPLOYEE JOB FUNCTION"],
+  // ACCOUNT NAME and CUSTOMER NAME are the same field — accept either header
+  "ACCOUNT NAME":          ["CUSTOMER NAME", "CLIENT NAME", "CUSTOMER", "ACCOUNT"],
 };
 
 /** Normalize a column name: uppercase, collapse whitespace, replace _/- with space. */
@@ -128,18 +112,35 @@ export async function validateHrmsHeaders(file: File): Promise<ValidationResult>
   }
 
   if (!headerRow.length) {
-    return { missing: REQUIRED_COLUMNS, mappings: [], valid: false };
+    return { missing: REQUIRED_COLUMNS, recommended: RECOMMENDED_COLUMNS, mappings: [], valid: false };
   }
 
+  // Build a combined set of all columns to match against (required + recommended)
+  const ALL_COLUMNS = [...REQUIRED_COLUMNS, ...RECOMMENDED_COLUMNS];
   const claimed = new Set<string>();
 
   for (const col of headerRow) {
     if (!col) continue;
-    const norm  = normalizeCol(col);
-    const match = findMatch(norm, claimed);
-    if (match) claimed.add(match);
+    const norm = normalizeCol(col);
+    // Pass 1 — exact
+    for (const req of ALL_COLUMNS) {
+      if (claimed.has(req)) continue;
+      if (norm === req) { claimed.add(req); break; }
+    }
+    if (claimed.has(normalizeCol(col))) continue;
+    // Pass 2 — alias
+    for (const req of ALL_COLUMNS) {
+      if (claimed.has(req)) continue;
+      if (ALIASES[req]?.some((a) => normalizeCol(a) === norm)) { claimed.add(req); break; }
+    }
+    // Pass 3 — fuzzy (distance ≤ 1)
+    for (const req of ALL_COLUMNS) {
+      if (claimed.has(req)) continue;
+      if (levenshtein(norm, req) <= 1) { claimed.add(req); break; }
+    }
   }
 
-  const missing = REQUIRED_COLUMNS.filter((r) => !claimed.has(r));
-  return { missing, mappings: [], valid: missing.length === 0 };
+  const missing     = REQUIRED_COLUMNS.filter((r) => !claimed.has(r));
+  const recommended = RECOMMENDED_COLUMNS.filter((r) => !claimed.has(r));
+  return { missing, recommended, mappings: [], valid: missing.length === 0 };
 }

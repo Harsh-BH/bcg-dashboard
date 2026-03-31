@@ -4,6 +4,7 @@ import pandas as pd
 from logic.constants import (
     BUCKET_CONNEQT, BUCKET_ALLDIGI, BUCKET_TECHDIG, BUCKET_CXO, SUPPORT_PREFIX,
 )
+from logic.utils import salary_series_from_df, salary_series_from_ids
 
 
 def build_hier_table(
@@ -192,3 +193,114 @@ def people_for_ids_and_buckets(df: pd.DataFrame, ids: set[str], buckets: list[st
     if "BUCKET" in out.columns and buckets:
         out = out[out["BUCKET"].astype(str).isin(buckets)].copy()
     return out
+
+
+def _bucket_series_value(series: "pd.Series | None", key: str) -> float:
+    if series is None:
+        return np.nan
+    return float(series.get(key, 0.0))
+
+
+def _bucket_series_sum(series: "pd.Series | None", keys: list[str]) -> float:
+    if series is None:
+        return np.nan
+    return float(sum(float(series.get(k, 0.0)) for k in keys))
+
+
+def _build_bucket_order_from_frames(base_df: pd.DataFrame, end_df: pd.DataFrame):
+    all_buckets = sorted(set(base_df["BUCKET"]).union(set(end_df["BUCKET"])))
+    delivery_children = [BUCKET_CONNEQT, BUCKET_ALLDIGI, BUCKET_TECHDIG]
+    support_children = [b for b in all_buckets if b not in delivery_children and b != BUCKET_CXO]
+    support_sorted = []
+    if SUPPORT_PREFIX + "HR" in support_children:
+        support_sorted.append(SUPPORT_PREFIX + "HR")
+    support_sorted.extend(sorted([b for b in support_children if b != SUPPORT_PREFIX + "HR"]))
+    return all_buckets, delivery_children, support_sorted
+
+
+def build_reconciliation_salary_table(
+    base_df: pd.DataFrame,
+    end_df: pd.DataFrame,
+    spartan_exit_ids: set[str],
+    bau_attrition_ids: set[str],
+    new_hire_ids: set[str],
+    base_label: str,
+    spartan_label: str,
+    bau_label: str,
+    hire_label: str,
+    end_label: str,
+) -> pd.DataFrame:
+    """
+    Salary reconciliation version of HRMS walk.
+    - Baseline / Spartan exits / BAU attrition → base month OTC PA
+    - New hires / End-point → end month OTC PA
+    If a file does not have OTC PA, the affected columns are NA.
+    Values are in ₹ Cr. % change is SIGNED.
+    """
+    all_buckets, delivery_children, support_sorted = _build_bucket_order_from_frames(base_df, end_df)
+
+    base_salary = salary_series_from_df(base_df)
+    spartan_salary = salary_series_from_ids(base_df, spartan_exit_ids)
+    bau_salary = salary_series_from_ids(base_df, bau_attrition_ids)
+    hire_salary = salary_series_from_ids(end_df, new_hire_ids)
+    end_salary = salary_series_from_df(end_df)
+
+    rows = []
+
+    def add_row(label: str, key: str | None, rowtype: str):
+        if key is None:
+            b = _bucket_series_sum(base_salary, all_buckets)
+            s = _bucket_series_sum(spartan_salary, all_buckets)
+            a = _bucket_series_sum(bau_salary, all_buckets)
+            h = _bucket_series_sum(hire_salary, all_buckets)
+            e = _bucket_series_sum(end_salary, all_buckets)
+        elif key == "DELIVERY_TOTAL":
+            b = _bucket_series_sum(base_salary, delivery_children)
+            s = _bucket_series_sum(spartan_salary, delivery_children)
+            a = _bucket_series_sum(bau_salary, delivery_children)
+            h = _bucket_series_sum(hire_salary, delivery_children)
+            e = _bucket_series_sum(end_salary, delivery_children)
+        elif key == "SUPPORT_TOTAL":
+            b = _bucket_series_sum(base_salary, support_sorted)
+            s = _bucket_series_sum(spartan_salary, support_sorted)
+            a = _bucket_series_sum(bau_salary, support_sorted)
+            h = _bucket_series_sum(hire_salary, support_sorted)
+            e = _bucket_series_sum(end_salary, support_sorted)
+        else:
+            b = _bucket_series_value(base_salary, key)
+            s = _bucket_series_value(spartan_salary, key)
+            a = _bucket_series_value(bau_salary, key)
+            h = _bucket_series_value(hire_salary, key)
+            e = _bucket_series_value(end_salary, key)
+
+        if pd.isna(b) or pd.isna(e):
+            abs_change = np.nan
+            pct_change = np.nan
+        else:
+            abs_change = e - b
+            if b == 0 and e == 0:
+                pct_change = 0.0
+            elif b == 0:
+                pct_change = 1.0
+            else:
+                pct_change = abs_change / b
+
+        rows.append((label, b, s, a, h, e, abs_change, pct_change, rowtype))
+
+    add_row("Grand total", None, "grand")
+    add_row("Delivery", "DELIVERY_TOTAL", "header")
+    for child in delivery_children:
+        add_row(child, child, "child")
+    add_row(BUCKET_CXO, BUCKET_CXO, "header")
+    add_row("Support Functions", "SUPPORT_TOTAL", "header")
+    for child in support_sorted:
+        add_row(child, child, "child")
+
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "Annual salary cost (₹ Cr)",
+            base_label, spartan_label, bau_label, hire_label, end_label,
+            "Abs. change", "% change", "_rowtype",
+        ],
+    )

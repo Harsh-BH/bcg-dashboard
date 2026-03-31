@@ -3,6 +3,7 @@ import calendar
 import re
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from logic.constants import HR_MANDATORY_STD
@@ -119,6 +120,48 @@ def format_snapshot_date(year: int, month: int, day: int) -> str:
     else:
         suffix = {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
     return f"{day}{suffix} {d.strftime('%B')}, {year}"
+
+
+def normalize_otc_pa_to_cr(series: pd.Series) -> pd.Series:
+    """Convert OTC PA to numeric annual salary in ₹ Cr. Non-numeric/blank/NA → 0. Values assumed in rupees."""
+    if series is None:
+        return pd.Series(dtype="float64")
+    s = series.astype("string").fillna("").str.strip()
+    low = s.str.lower()
+    s = s.mask(low.isin({"", "not existent", "not existing", "na", "n/a", "nan", "none", "null", "nat"}), "")
+    s = s.str.replace(",", "", regex=False).str.replace("₹", "", regex=False)
+    s = s.str.replace(r"[^0-9.\-]", "", regex=True)
+    s = s.replace({"": pd.NA, "-": pd.NA, ".": pd.NA, "-.": pd.NA})
+    vals = pd.to_numeric(s, errors="coerce").fillna(0.0)
+    vals = vals.where(np.isfinite(vals), 0.0)
+    return vals / 1e7
+
+
+def snapshot_has_salary(df: pd.DataFrame) -> bool:
+    """True when this snapshot has an OTC PA-derived salary column available."""
+    return (
+        df is not None
+        and not df.empty
+        and "OTC PA (CR)" in df.columns
+        and df["OTC PA (CR)"].notna().any()
+    )
+
+
+def salary_series_from_df(df: pd.DataFrame) -> "pd.Series | None":
+    """Bucket → salary in ₹ Cr for the whole snapshot, or None if OTC PA missing."""
+    if not snapshot_has_salary(df):
+        return None
+    return df.groupby("BUCKET")["OTC PA (CR)"].sum()
+
+
+def salary_series_from_ids(df: pd.DataFrame, ids: set) -> "pd.Series | None":
+    """Bucket → salary in ₹ Cr for the selected employee IDs, or None if OTC PA missing."""
+    if not snapshot_has_salary(df):
+        return None
+    if not ids:
+        return pd.Series(dtype="float64")
+    keys = df["EMPLOYEE ID"].map(to_id_string)
+    return df[keys.isin(ids)].groupby("BUCKET")["OTC PA (CR)"].sum()
 
 
 def span_normalize_hrms_ids(df: pd.DataFrame) -> pd.DataFrame:

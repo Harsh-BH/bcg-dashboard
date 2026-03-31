@@ -6,6 +6,7 @@ import pandas as pd
 from logic.constants import HR_MANDATORY_STD, HR_FILE_RE
 from logic.utils import (
     to_id_string, clean_text_series, read_excel_best_sheet, format_snapshot_date,
+    normalize_otc_pa_to_cr,
 )
 from logic.normalization import normalize_hr_cols
 from logic.bucketing import _detect_file_type_from_normalized, classify_bucket_type1, classify_bucket_type2
@@ -40,6 +41,12 @@ def prepare_hr_snapshot(df_raw: pd.DataFrame, *, is_previous: bool) -> tuple[pd.
         df["BUCKET"] = classify_bucket_type1(df)
     else:
         df["BUCKET"] = classify_bucket_type2(df)
+
+    if "OTC PA" in df.columns:
+        df["OTC PA (CR)"] = normalize_otc_pa_to_cr(df["OTC PA"])
+    else:
+        import numpy as np
+        df["OTC PA (CR)"] = np.nan
 
     counts = df.groupby("BUCKET")["EMPLOYEE ID"].nunique()
     return df, counts, file_type

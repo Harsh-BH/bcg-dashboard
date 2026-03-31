@@ -40,7 +40,7 @@ def normalize_hr_cols(df: pd.DataFrame) -> pd.DataFrame:
         "COST CENTER NAME": ["cost center name", "costcentername", "cost_center_name", "cost centre name", "cost center desc"],
         "MANAGER1 ECODE": [
             "manager1 ecode", "manager ecode", "manager1 e code", "manager_ecode",
-            "reporting manager id", "manager id", "managerid", "manager_id",
+            "reporting manager id", "reporting manager", "manager id", "managerid", "manager_id",
             "manager emp id", "manager employee id", "manager empid",
         ],
         "MANAGER1 EMPNAME": [
@@ -49,6 +49,7 @@ def normalize_hr_cols(df: pd.DataFrame) -> pd.DataFrame:
         ],
         "GRADE": ["grade", "employee grade", "emp grade"],
         "SEPARATION": ["separation", "separations", "separation status", "separation_status", "separationstatus"],
+        "OTC PA": ["otc pa", "otc_pa", "otcpa", "otc p.a", "otc p a", "otc/pa"],
     }
 
     rename = {}
@@ -121,13 +122,24 @@ def normalize_span_hrms_cols(df: pd.DataFrame) -> pd.DataFrame:
         "PROCESS": ["process", "process name", "process description"],
         "DIVISION": ["division", "emp division", "employee division", "division name", "div"],
         "JOB_FUNCTION": ["job function", "jobfunction", "job_function", "function", "job role", "jobfunction name", "employee job function"],
-        "ACCOUNT NAME": ["account name", "account_name", "client name", "account"],
+        "ACCOUNT NAME": ["account name", "account_name", "customer name", "customer_name", "customername", "customer", "client name", "account"],
         "LEGAL EMPLOYER NAME": ["legal employer name", "legal_employer_name", "legal employer"],
         "MANPOWER": ["manpower"],
         "SEPARATIONS": ["separations", "separation", "separation_status", "separation status"],
         "SUB PROCESS": ["sub process", "sub_process", "subprocess"],
         "MANPOWER CHECK": ["manpower check", "manpower_check", "manpowercheck", "mp check", "man power check"],
         "COST CENTER": ["cost center", "costcenter", "cost_center", "cost centre", "cc", "cost centre code"],
+        # Pivot/analysis workbook columns (app.py Conneqt analysis files)
+        "MAPPING":              ["mapping"],
+        "AGG SERVICE LINE":     ["agg service line", "agg_service_line", "agg service-line"],
+        "UPDATED BUSINESS UNIT":["updated business unit", "updated_business_unit"],
+        "EXCLUSION":            ["exclusion"],
+        "IC FLAG":              ["ic flag", "ic_flag", "icflag", "ic flag2"],
+        "TL FLAG":              ["tl flag", "tl_flag", "tlflag"],
+        "M1 FLAG":              ["m1 flag", "m1_flag", "m1flag"],
+        "M2 FLAG":              ["m2 flag", "m2_flag", "m2flag"],
+        "M3 FLAG":              ["m3 flag", "m3_flag", "m3flag"],
+        "M4+ FLAG":             ["m4+ flag", "m4+_flag", "m4 flag", "m4plus flag"],
     }
     rename = {}
     for std, alist in aliases.items():

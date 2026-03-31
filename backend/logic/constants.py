@@ -1,35 +1,7 @@
 import re
 
-HR_MANDATORY_STD = [
-    "EMPLOYEE ID",
-    "ASSIGNMENT NUMBER",
-    "NAME",
-    "DATE OF JOINING",
-    "EMPLOYEE TYPE",
-    "LEVEL",
-    "DESIGNATION",
-    "BILLABLE NON BILLABLE",
-    "WORK LOCATION",
-    "STATE",
-    "REGION",
-    "COUNTRY",
-    "EMPLOYEE STATUS",
-    "EMPLOYMENT TYPE",
-    "BUSINESS UNIT",
-    "BUSINESS",
-    "DIVISION",
-    "PROCESS",
-    "SUB PROCESS",
-    "ORGANIZATION TYPE",
-    "JOB FUNCTION",
-    "SUB FUNCTION",
-    "JOB FAMILY",
-    "SUB FAMILY",
-    "COST CENTER",
-    "COST CENTER NAME",
-    "MANAGER1 ECODE",
-    "MANAGER1 EMPNAME",
-]
+# Only 3 columns are truly mandatory — everything else is optional/derived
+HR_MANDATORY_STD = ["EMPLOYEE ID", "BUSINESS UNIT", "BUSINESS"]
 
 BUCKET_CONNEQT = "Conneqt Business Solution"
 BUCKET_ALLDIGI = "Alldigi"
@@ -53,17 +25,30 @@ HR_FILE_RE = re.compile(
 SPAN_GRADES_IC = {"naps", "nats", "pt", "at", "a1.1", "a1.2", "a1.3"}
 SPAN_GRADES_TL = {"a3", "a4", "a5", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8"}
 
+# TL designation phrases (A1.x / A2.x mandatory TL — space-insensitive substring)
+# "senior manager", "senior manager quality", "senior officer", "srtl" removed per request
 SPAN_TL_DESIGNATIONS = {
     "team lead",
     "team leader",
     "team manager",
-    "senior manager",
-    "senior manager quality",
-    "senior officer",
     "lead",
-    "srtl",
     "supervisor",
 }
+
+# September-specific extra TL designation phrases (Collections/CLM/WFM/Quality/Training + MEU cluster)
+SEPTEMBER_TL_EXTRA_PHRASES_SL_KEYS: frozenset[str] = frozenset(
+    {"core_collections", "core_clm", "ds_wfm", "ds_quality", "ds_training"}
+)
+SEPTEMBER_TL_EXTRA_PHRASES_CLUSTER_NAMES: frozenset[str] = frozenset({"MEU"})
+SEPTEMBER_TL_EXTRA_PHRASES: frozenset[str] = frozenset({
+    "manager", "deputy manager", "lead", "supervisor",
+    "admin manager", "assistant vp", "associate test lead",
+    "sr. fos collections executive",
+})
+SEPTEMBER_TL_COLLECTIONS_CLM_PHRASES: frozenset[str] = frozenset(SEPTEMBER_TL_EXTRA_PHRASES)
+
+# MEU September ONLY: these designation substrings override TL
+SEPTEMBER_MEU_NON_TL_DESIGNATIONS: frozenset[str] = frozenset({"senior", "sr."})
 
 # Service line
 SPAN_SL_CORE_KEYS = ("core_collections", "core_clm", "core_fa_back_office")
@@ -80,38 +65,91 @@ SPAN_SERVICE_LINE_ROW_SPEC: tuple[tuple[str, str, str | None], ...] = (
     ("Delivery support", "Unclassified (PROCESS mapping TBD)", "unclassified"),
 )
 
-_SPAN_SERVICE_LINE_RULES_VERSION = 10
+_SPAN_SERVICE_LINE_RULES_VERSION = 44
 
-SPAN_SL_CC_OVERRIDE: dict[str, str] = {
-    "40FSHBLAG1": "core_fa_back_office",
-    "40FSHBLAGR": "core_collections",
-    "40FSHBLTW1": "core_collections",
-    "40FSHBLMAN": "core_collections",
-    "40LDHBLAGR": "core_collections",
-    "40FSHDFALC": "core_collections",
-    "40KOSBITCO": "core_clm",
-    "40RBSBITCO": "core_clm",
-    "40KOSBITC1": "core_collections",
-    "40ARTAIGCC": "core_clm",
-    "40ARTAIGOB": "core_clm",
-    "90PU2CROMA": "core_clm",
-    "13HYATLDTH": "core_clm",
-    "90HYATELBO": "core_clm",
-    "40COMFCVOI": "core_clm",
-    "40KSGHFBLO": "core_clm",
-    "40KSGHFLCC": "core_clm",
-    "40CH2MFLBO": "core_fa_back_office",
-    "40KSGHFLBO": "core_fa_back_office",
-    "40ARGHFL2E": "core_fa_back_office",
-    "40KSGHFINV": "core_fa_back_office",
-    "40KONABPLM": "core_collections",
-    "40HYMMFCPC": "core_fa_back_office",
-    "40LDJLRPO": "core_fa_back_office",
-    "40LDJLRAP": "core_fa_back_office",
-    "40KSTCFSPD": "core_fa_back_office",
-    "40COTCSSAP": "core_fa_back_office",
-    "40KSKSFBOF": "core_fa_back_office",
-}
+# Exact process sets
+CLM_VOICE_PROCESS: frozenset[str] = frozenset({
+    "clm domestic bfsi | inbound",
+    "clm domestic bfsi | outbound",
+    "clm domestic diversified | inbound",
+    "clm domestic diversified | outbound",
+    "clm international | inbound",
+    "clm international | outbound",
+    "collections | fos",
+})
+
+CLM_BACKOFFICE_PROCESS: frozenset[str] = frozenset({
+    "clm domestic bfsi | back office",
+    "clm domestic diversified | back office",
+    "clm international | back office",
+})
+
+COLLECTIONS_PROCESS: frozenset[str] = frozenset({
+    "collections",
+    "collections | telecollection",
+})
+
+# F&A back office exact processes (same as CLM_BACKOFFICE_PROCESS)
+JAN_BO_PROCESSES: frozenset[str] = frozenset(CLM_BACKOFFICE_PROCESS)
+
+# Dec-style CC overrides
+DEC_CLM_BACKOFFICE_TO_BACKOFFICE_CC: frozenset[str] = frozenset({
+    "40CH2MFLBO", "40COTCHFHL", "40COTCFSHB", "40HYMMFCPC", "40HYIDFCBO",
+    "90KOTSLSSS", "40ARGHFL2E", "40LDCIIPCT", "40KSGHFLBO", "40NOITCLTW",
+    "40COTCHFOH", "40KSGHFINV", "40COTCFSSB", "40COTCSSAP", "40KKTCLCPC",
+    "40LDJLRAP", "40COTCSHLP", "40NO2TCHDH", "40COTCHFHB", "40LDTCFSPF",
+    "90PU3BALCP", "40LDIPLIHR", "40COMACLSM", "40KSACTCAM", "40KSTCLCPC",
+    "40KSNDHFBO", "40KSKSFBOF",
+})
+
+DEC_CLM_BACKOFFICE_TO_COLLECTIONS_CC: frozenset[str] = frozenset({
+    "40KONABPLM", "40KVTMFLWC", "40LDHSLIOB", "40RBPCHFTC",
+})
+
+DEC_COLLECTIONS_TO_CLM_CC: frozenset[str] = frozenset({
+    "13HYATLDTH", "20KO01OBA", "40AR2CBKVO", "40AR2SSBMP", "40AR4WENVO",
+    "40ARTAIGCC", "40ARTAIGOB", "40BAKBLIOB", "40BAKBLSOB", "40CHIOBVOI",
+    "40CORRLCSA", "40COUCOVOI", "40COUSFVOI", "40HY1FTPSS", "40HYCGGVOI",
+    "40INMDLVOI", "40INUPGOBS", "40KOIPPBV1", "40KOSBITCO", "40KVKMBCOC",
+    "40KVKMBETB", "40KVKMBPLO", "40KVOSCVOI", "40LDLDPLCC", "40LDRWLOBS",
+    "40NO2AFSOS", "40RBMCOVOI", "40RBPCHFOS", "40RBRLBVOI", "40RBRLBVOP",
+    "40RBSBITCO", "40RBSGIOBR", "90BA03TVSM", "90HYATELBO", "90MO01SBCC",
+    "90PU02OB1", "90PU2CROMA",
+})
+
+DEC_COLLECTIONS_TO_BACKOFFICE_CC: frozenset[str] = frozenset({
+    "40FSHBLAG1",
+})
+
+DEC_CLMVOICE_TO_COLLECTIONS_CC: frozenset[str] = frozenset({
+    "40AR4PCHDT", "40ARCFLCC", "40ARIDFCTC", "40ARTVSMPC", "40BAMFLVOI",
+    "40FSDFSCOL", "40FSLTFTWC", "40FSMMFXTC", "40KOCBITEL", "40KOSBITC1",
+    "40KSTMFLIC", "40KVDHFCOL", "40LDCMFLOT", "40LDHSLIOB", "40NOMMFXTC",
+    "40RBMMFXTC", "40RBPCHFTC", "40RBTVSTEC", "40RBTYCTCO", "90AR2MRHTC",
+    "90ARIIBWOP", "90CHHHFCOL", "90PU02TFOS",
+})
+
+DEC_CLM_TO_DS_OTHERS_CC: frozenset[str] = frozenset({
+    "LDA01HR01", "MOH01HR01", "CORPHRNAPS",
+})
+
+DEC_FORCE_UNCLASSIFIED_CC: frozenset[str] = frozenset({
+    "NOT_LOADED", "09. Projects Department", "90HY01MEA1", "40N02AFSOS",
+})
+
+BLANK_PROCESS_TO_DS_OTHERS_CC: frozenset[str] = frozenset({
+    "LDA01HR01", "MOH01HR01", "CORPHRNAPS", "CORPOPSEXC",
+})
+
+BLANK_PROCESS_TO_DS_OTHERS_ACCOUNT: frozenset[str] = frozenset({
+    "human resource support", "operations excellence",
+})
+
+FORCE_UNCLASSIFIED_CC: frozenset[str] = frozenset({"NOT_LOADED", "09. Projects Department"})
+FORCE_UNCLASSIFIED_ACCOUNT: frozenset[str] = frozenset({"not found"})
+
+# Post-adjustment clusters
+SPAN_ADJUST_CLUSTERS_MAR16_23: frozenset[str] = frozenset({"EMERGING"})
 
 DIVISION_CLM_WHEN_PROCESS_BLANK: frozenset[str] = frozenset(
     {
