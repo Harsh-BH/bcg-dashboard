@@ -53,19 +53,35 @@ def df_to_excel_bytes(df: pd.DataFrame, sheet_name: str) -> bytes:
     return output.getvalue()
 
 
+_EMP_ID_ALIASES = frozenset({
+    "employee id", "employeeid", "emp id", "empid",
+    "employee code", "employee no", "employee number", "employee_id",
+})
+
+
 def read_excel_best_sheet(source) -> pd.DataFrame:
-    """Read the sheet with the most non-empty rows."""
+    """Read the sheet most likely to be the HRMS master data.
+
+    Priority (descending):
+    1. Sheet name contains "hrms" (case-insensitive).
+    2. Sheet has an employee-ID-like column header.
+    3. Sheet with the most columns (richer schema = main data).
+    4. Sheet with the most non-empty rows.
+    """
     xls = pd.ExcelFile(source)
     best_df = None
-    best_rows = -1
+    best_score: tuple = (-1, -1, -1, -1)
     for sheet_name in xls.sheet_names:
         d = xls.parse(sheet_name)
         if d is None:
             continue
         d2 = d.dropna(how="all")
-        n = len(d2)
-        if n > best_rows:
-            best_rows = n
+        cols_lower = {str(c).strip().lower() for c in d2.columns}
+        name_has_hrms = int("hrms" in sheet_name.lower())
+        has_emp_id = int(bool(cols_lower & _EMP_ID_ALIASES))
+        score = (name_has_hrms, has_emp_id, len(d2.columns), len(d2))
+        if score > best_score:
+            best_score = score
             best_df = d2.copy()
     if best_df is None:
         best_df = xls.parse(xls.sheet_names[0]).dropna(how="all")
