@@ -52,11 +52,13 @@ def prepare_hr_snapshot(df_raw: pd.DataFrame, *, is_previous: bool) -> tuple[pd.
     return df, counts, file_type
 
 
-def load_snapshot(file_bytes: bytes, is_previous: bool) -> tuple[pd.DataFrame, pd.Series, str]:
-    """Load from raw bytes (uploaded file)."""
+def load_snapshot(file_bytes: bytes, is_previous: bool) -> tuple[pd.DataFrame, pd.Series, str, pd.DataFrame]:
+    """Load from raw bytes (uploaded file). Returns (df, counts, file_type, raw_df)."""
     import io
     raw = read_excel_best_sheet(io.BytesIO(file_bytes))
-    return prepare_hr_snapshot(raw.dropna(how="all"), is_previous=is_previous)
+    raw_clean = raw.dropna(how="all")
+    df, counts, file_type = prepare_hr_snapshot(raw_clean, is_previous=is_previous)
+    return df, counts, file_type, raw_clean
 
 
 def _hr_folder_skip_non_snapshot_xlsx(filename: str) -> bool:

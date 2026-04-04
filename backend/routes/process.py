@@ -1,4 +1,3 @@
-import io
 from datetime import date, datetime
 from typing import Optional
 
@@ -11,7 +10,7 @@ from logic.snapshot import (
     prepare_hr_snapshot,
     validate_hrms_filename,
 )
-from logic.utils import read_excel_best_sheet, format_snapshot_date
+from logic.utils import format_snapshot_date
 from logic.normalization import normalize_hr_cols
 from logic.table_builders import (
     build_hier_table,
@@ -90,9 +89,9 @@ def _people_by_bucket(df: pd.DataFrame, ids: set[str], all_buckets: list[str]) -
 
 
 def _hier_rows_to_dicts(table: pd.DataFrame) -> list[dict]:
+    records = table.to_dict(orient="records")
     rows = []
-    for _, row in table.iterrows():
-        d = row.to_dict()
+    for d in records:
         rowtype = d.pop("_rowtype", "child")
         label = d.pop("Headcount", "")
         rows.append({"label": label, "rowtype": rowtype, "values": d})
@@ -152,8 +151,8 @@ async def process_dashboard(
     loaded: list[dict] = []
     for snap in snapshots_raw:
         try:
-            df, counts, file_type = load_snapshot(snap["file_bytes"], is_previous=False)
-            loaded.append({**snap, "df": df, "counts": counts, "file_type": file_type})
+            df, counts, file_type, raw_df = load_snapshot(snap["file_bytes"], is_previous=False)
+            loaded.append({**snap, "df": df, "counts": counts, "file_type": file_type, "raw_df": raw_df})
         except Exception as e:
             raise HTTPException(422, f"{snap['filename']}: {e}")
 
@@ -165,6 +164,24 @@ async def process_dashboard(
         }
         for s in loaded
     ]
+
+    # Pre-compute per-snapshot derived values used in N² pair loops
+    for s in loaded:
+        s["_ids"] = set(s["df"]["EMPLOYEE ID"].astype(str))
+        s["_bucket_counts"] = s["df"].groupby("BUCKET")["EMPLOYEE ID"].nunique()
+
+    # Global bucket union — used for all pairs so _people_by_bucket can be cached per snapshot
+    _all_buckets_global: list[str] = sorted(
+        set().union(*(set(s["df"]["BUCKET"]) for s in loaded))
+    )
+    # Cache people dicts per snapshot (keyed by month_short) — same df appears in multiple pairs
+    _people_cache: dict[str, dict[str, list[dict]]] = {}
+
+    def _cached_people(snap: dict) -> dict[str, list[dict]]:
+        key = snap["month_short"]
+        if key not in _people_cache:
+            _people_cache[key] = _people_by_bucket(snap["df"], snap["_ids"], _all_buckets_global)
+        return _people_cache[key]
 
     # ── 3. Spartan & Payroll ──────────────────────────────────────────────────
     spartan_df: pd.DataFrame | None = None
@@ -246,16 +263,12 @@ async def process_dashboard(
             key = f"{start_s['month_short']} → {end_s['month_short']}"
             table = build_hier_table(start_s["counts"], end_s["counts"], start_s["month_short"], end_s["month_short"])
 
-            start_ids = set(start_s["df"]["EMPLOYEE ID"].astype(str))
-            end_ids = set(end_s["df"]["EMPLOYEE ID"].astype(str))
-            all_buckets = sorted(set(start_s["df"]["BUCKET"]).union(set(end_s["df"]["BUCKET"])))
-
             pair_tables[key] = {
                 "start_label": start_s["month_short"],
                 "end_label": end_s["month_short"],
                 "hier_rows": _hier_rows_to_dicts(table),
-                "start_people": _people_by_bucket(start_s["df"], start_ids, all_buckets),
-                "end_people": _people_by_bucket(end_s["df"], end_ids, all_buckets),
+                "start_people": _cached_people(start_s),
+                "end_people": _cached_people(end_s),
             }
 
     # ── 7. Reconciliation tables ──────────────────────────────────────────────
@@ -265,29 +278,26 @@ async def process_dashboard(
             base_s, end_s = loaded[i], loaded[j]
             key = f"{base_s['month_short']} → {end_s['month_short']}"
 
-            base_ids = set(base_s["df"]["EMPLOYEE ID"].astype(str))
-            end_ids = set(end_s["df"]["EMPLOYEE ID"].astype(str))
+            base_ids = base_s["_ids"]
+            end_ids = end_s["_ids"]
 
             sep_only = base_ids - end_ids
             spartan_exit_ids = sep_only & spartan_active_ids
             bau_attrition_ids = sep_only - spartan_exit_ids
             new_hire_ids = end_ids - base_ids
 
-            base_counts_rec = base_s["df"].groupby("BUCKET")["EMPLOYEE ID"].nunique()
             rec_table = build_reconciliation_table(
-                base_counts=base_counts_rec,
+                base_counts=base_s["_bucket_counts"],
                 spartan_counts=counts_from_ids(base_s["df"], spartan_exit_ids),
                 bau_counts=counts_from_ids(base_s["df"], bau_attrition_ids),
                 hire_counts=counts_from_ids(end_s["df"], new_hire_ids),
-                end_counts=end_s["df"].groupby("BUCKET")["EMPLOYEE ID"].nunique(),
+                end_counts=end_s["_bucket_counts"],
                 base_label=f"{base_s['month_short']} (Baseline)",
                 spartan_label=f"-Spartan exits till {end_s['month_short']}",
                 bau_label="-BAU attrition",
                 hire_label="-New hires",
                 end_label=f"{end_s['month_short']} (End-point)",
             )
-
-            all_buckets = sorted(set(base_s["df"]["BUCKET"]).union(set(end_s["df"]["BUCKET"])))
 
             salary_table = build_reconciliation_salary_table(
                 base_df=base_s["df"],
@@ -307,25 +317,16 @@ async def process_dashboard(
                 "end_label": end_s["month_short"],
                 "rows": _recon_rows_to_dicts(rec_table),
                 "salary_rows": _recon_rows_to_dicts(salary_table),
-                "baseline_people": _people_by_bucket(base_s["df"], base_ids, all_buckets),
-                "spartan_exit_people": _people_by_bucket(base_s["df"], spartan_exit_ids, all_buckets),
-                "bau_attrition_people": _people_by_bucket(base_s["df"], bau_attrition_ids, all_buckets),
-                "new_hire_people": _people_by_bucket(end_s["df"], new_hire_ids, all_buckets),
-                "end_people": _people_by_bucket(end_s["df"], end_ids, all_buckets),
+                "baseline_people": _cached_people(base_s),
+                "spartan_exit_people": _people_by_bucket(base_s["df"], spartan_exit_ids, _all_buckets_global),
+                "bau_attrition_people": _people_by_bucket(base_s["df"], bau_attrition_ids, _all_buckets_global),
+                "new_hire_people": _people_by_bucket(end_s["df"], new_hire_ids, _all_buckets_global),
+                "end_people": _cached_people(end_s),
             }
 
     # ── 8. Span data ──────────────────────────────────────────────────────────
-    # Collect raw DFs for span (re-read from bytes to avoid post-prepare_hr_snapshot mutation)
-    span_snapshots: list[dict] = []
-    for snap in loaded:
-        try:
-            raw_df = read_excel_best_sheet(io.BytesIO(snap["file_bytes"])).dropna(how="all")
-        except Exception:
-            raw_df = snap["df"]
-        span_snapshots.append({
-            **snap,
-            "raw_df": raw_df,
-        })
+    # raw_df was preserved from the initial load — no need to re-parse Excel
+    span_snapshots: list[dict] = loaded
 
     # Collect unknown grades union across all snapshots
     all_unknown: set[str] = set()
@@ -393,6 +394,12 @@ async def process_dashboard(
     }
 
     # ── 9. Spartan/HRMS checks ────────────────────────────────────────────────
+    # Payroll checks are pair-independent — compute once
+    payroll_result = build_payroll_checks(
+        spartan_df, payroll_df, payroll_ids,
+        pay_start, pay_end,
+    )
+
     spartan_checks: dict[str, dict] = {}
     for i in range(len(loaded)):
         for j in range(i + 1, len(loaded)):
@@ -404,11 +411,6 @@ async def process_dashboard(
                 base_s["df"], end_s["df"],
                 spartan_df, spartan_active_ids,
                 end_date,
-            )
-
-            payroll_result = build_payroll_checks(
-                spartan_df, payroll_df, payroll_ids,
-                pay_start, pay_end,
             )
 
             spartan_checks[key] = {
