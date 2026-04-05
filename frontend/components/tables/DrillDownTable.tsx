@@ -22,6 +22,7 @@ interface DrillDownTableProps {
   onCellClick?: (row: Record<string, unknown>, colKey: string) => void;
   drillPeople?: PersonRow[];
   drillTitle?: string;
+  drillLoading?: boolean;
   downloadFilename?: string;
   className?: string;
 }
@@ -33,6 +34,7 @@ export function DrillDownTable({
   onCellClick,
   drillPeople,
   drillTitle,
+  drillLoading,
   downloadFilename,
   className,
 }: DrillDownTableProps) {
@@ -166,8 +168,18 @@ export function DrillDownTable({
         </div>
       </div>
 
+      {/* Drill-down loading */}
+      {drillLoading && (
+        <div className="rounded-xl border-l-4 border-blue-500 border border-slate-200 bg-blue-50/20 shadow-sm p-6 animate-in fade-in-0 duration-200">
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
+            <span className="text-sm text-slate-600">{drillTitle ? `Loading ${drillTitle}…` : "Loading people…"}</span>
+          </div>
+        </div>
+      )}
+
       {/* Drill-down panel */}
-      {drillPeople && drillPeople.length > 0 && (
+      {!drillLoading && drillPeople && drillPeople.length > 0 && (
         <div className="rounded-xl border-l-4 border-blue-500 border border-slate-200 bg-blue-50/20 shadow-sm overflow-hidden animate-in slide-in-from-top-2 fade-in-0 duration-200">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
             <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { ProcessResponse } from "./types";
+import type { ProcessResponse, DrillResponse } from "./types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -28,6 +28,23 @@ export async function processFiles(payload: ProcessPayload): Promise<ProcessResp
 
   const { data } = await apiClient.post<ProcessResponse>("/api/process", form, {
     headers: { "Content-Type": "multipart/form-data" },
+  });
+  return data;
+}
+
+export async function fetchDrill(
+  sessionId: string,
+  snapshotLabel: string,
+  category: string,
+  idSet: string = "all",
+): Promise<DrillResponse> {
+  const { data } = await apiClient.get<DrillResponse>("/api/drill", {
+    params: {
+      session_id: sessionId,
+      snapshot_label: snapshotLabel,
+      category,
+      id_set: idSet,
+    },
   });
   return data;
 }

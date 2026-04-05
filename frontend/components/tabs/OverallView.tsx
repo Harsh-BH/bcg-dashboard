@@ -6,10 +6,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 import { HeadcountTrendChart } from "@/components/charts/HeadcountTrendChart";
-import { HierarchyTable } from "@/components/tables/HierarchyTable";
 import { DrillDownTable } from "@/components/tables/DrillDownTable";
 import { useDashboardStore } from "@/store/dashboardStore";
 import { fmtPct, fmtNum, downloadExcel } from "@/lib/utils";
+import { fetchDrill } from "@/lib/api";
 import type { HierRow, PersonRow } from "@/lib/types";
 import { AnomalyAlertList } from "@/components/ai/AnomalyAlertList";
 
@@ -25,35 +25,19 @@ export function OverallView() {
   const [metric, setMetric] = useState<"total" | "delivery" | "support" | "cxo">("total");
   const [drillPeople, setDrillPeople] = useState<PersonRow[] | null>(null);
   const [drillTitle, setDrillTitle] = useState("");
+  const [drillLoading, setDrillLoading] = useState(false);
 
   if (!data) return null;
 
-  const { trend, overview_table, pair_tables, snapshots } = data;
+  const { trend, overview_table, pair_tables, snapshots, session_id } = data;
   const labels = snapshots.map((s) => s.label);
 
-  // Guard selections
   const safeStart = previewStart ?? labels[0] ?? "";
   const safeEnd = previewEnd ?? labels[labels.length - 1] ?? "";
   const pairKey = `${safeStart} → ${safeEnd}`;
   const pairData = pair_tables[pairKey];
 
   const hierRows: HierRow[] = pairData?.hier_rows ?? [];
-  const hierCols = pairData
-    ? [
-        { key: "label", label: "Headcount" },
-        ...Object.keys(pairData.hier_rows[0]?.values ?? {})
-          .filter((k) => !k.startsWith("_"))
-          .map((k) => ({ key: k, label: k })),
-      ]
-    : [];
-
-  const handleCellClick = (row: HierRow, colKey: string) => {
-    const isStart = pairData && colKey === pairData.start_label;
-    const map = isStart ? pairData.start_people : pairData?.end_people;
-    const people = map?.[row.label.trim()] ?? map?.["Grand total"] ?? [];
-    setDrillPeople(people as PersonRow[]);
-    setDrillTitle(`${row.label.trim()} · ${colKey}`);
-  };
 
   const startDate = safeStart !== safeEnd ? safeStart : undefined;
 
@@ -182,16 +166,26 @@ export function OverallView() {
             <DrillDownTable
               rows={hierRows.map((r) => ({ label: r.label, _rowtype: r.rowtype, ...r.values }))}
               clickableKeys={[pairData.start_label, pairData.end_label]}
-              onCellClick={(row, colKey) => {
+              onCellClick={async (row, colKey) => {
                 const label = String(row["label"] ?? "").trim();
-                const isStart = colKey === pairData.start_label;
-                const people =
-                  (isStart ? pairData.start_people : pairData.end_people)[label] ?? [];
-                setDrillPeople(people as PersonRow[]);
                 setDrillTitle(`${label} · ${colKey}`);
+                setDrillLoading(true);
+                setDrillPeople(null);
+                try {
+                  const snapshotLabel = colKey === pairData.start_label
+                    ? pairData.start_label
+                    : pairData.end_label;
+                  const res = await fetchDrill(session_id, snapshotLabel, label);
+                  setDrillPeople(res.people);
+                } catch {
+                  setDrillPeople([]);
+                } finally {
+                  setDrillLoading(false);
+                }
               }}
               drillPeople={drillPeople ?? undefined}
               drillTitle={drillTitle}
+              drillLoading={drillLoading}
               downloadFilename={`headcount_${pairKey.replace(" → ", "_to_")}.xlsx`}
             />
           ) : (

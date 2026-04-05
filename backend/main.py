@@ -1,6 +1,8 @@
 import os
+import sys
+import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.process import router as process_router
@@ -22,6 +24,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    print(f">> {request.method} {request.url.path} (started)", flush=True)
+    response = await call_next(request)
+    elapsed = time.perf_counter() - start
+    print(f"<< {request.method} {request.url.path} -> {response.status_code} in {elapsed:.1f}s", flush=True)
+    return response
+
 
 app.include_router(process_router, prefix="/api")
 app.include_router(drill_router, prefix="/api")

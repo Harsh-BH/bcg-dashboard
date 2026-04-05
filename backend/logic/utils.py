@@ -66,13 +66,9 @@ def read_excel_best_sheet(source) -> pd.DataFrame:
     Uses calamine engine (Rust-based, ~6x faster than openpyxl) when available,
     falling back to openpyxl.
 
-    Priority (descending):
-    1. Sheet name contains "hrms" (case-insensitive).
-    2. Sheet has an employee-ID-like column header.
-    3. Sheet with the most columns (richer schema = main data).
-    4. Sheet with the most non-empty rows.
+    Short-circuits on a perfect match (sheet name contains 'hrms' AND has
+    employee ID column) to avoid parsing remaining sheets.
     """
-    # Prefer calamine (fast Rust reader); fall back to openpyxl
     try:
         import python_calamine  # noqa: F401
         engine = "calamine"
@@ -80,6 +76,10 @@ def read_excel_best_sheet(source) -> pd.DataFrame:
         engine = "openpyxl"
 
     xls = pd.ExcelFile(source, engine=engine)
+
+    if len(xls.sheet_names) == 1:
+        return xls.parse(xls.sheet_names[0]).dropna(how="all")
+
     best_df = None
     best_score: tuple = (-1, -1, -1, -1)
     for sheet_name in xls.sheet_names:
@@ -90,10 +90,12 @@ def read_excel_best_sheet(source) -> pd.DataFrame:
         cols_lower = {str(c).strip().lower() for c in d2.columns}
         name_has_hrms = int("hrms" in sheet_name.lower())
         has_emp_id = int(bool(cols_lower & _EMP_ID_ALIASES))
+        if name_has_hrms and has_emp_id:
+            return d2
         score = (name_has_hrms, has_emp_id, len(d2.columns), len(d2))
         if score > best_score:
             best_score = score
-            best_df = d2.copy()
+            best_df = d2
     if best_df is None:
         best_df = xls.parse(xls.sheet_names[0]).dropna(how="all")
     return best_df
