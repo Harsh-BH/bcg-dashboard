@@ -11,6 +11,9 @@ interface DashboardStore {
   data: ProcessResponse | null;
   setData: (d: ProcessResponse) => void;
 
+  isLoading: boolean;
+  setIsLoading: (v: boolean) => void;
+
   // selected pair for Tab1 preview
   previewStart: string | null;
   previewEnd: string | null;
@@ -58,6 +61,9 @@ interface DashboardStore {
 export const useDashboardStore = create<DashboardStore>((set) => ({
   data: null,
   setData: (d) => set({ data: d }),
+
+  isLoading: false,
+  setIsLoading: (v) => set({ isLoading: v }),
 
   previewStart: null,
   previewEnd: null,

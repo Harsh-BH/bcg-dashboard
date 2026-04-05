@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.process import router as process_router
+from routes.drill import router as drill_router
 
 app = FastAPI(
     title="Headcount Dashboard API",
@@ -23,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(process_router, prefix="/api")
+app.include_router(drill_router, prefix="/api")
 
 
 @app.get("/health")

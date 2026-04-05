@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 
 # Only 3 columns are truly mandatory — everything else is optional/derived

@@ -1,3 +1,4 @@
+from __future__ import annotations
 import io
 import calendar
 import re
@@ -62,13 +63,23 @@ _EMP_ID_ALIASES = frozenset({
 def read_excel_best_sheet(source) -> pd.DataFrame:
     """Read the sheet most likely to be the HRMS master data.
 
+    Uses calamine engine (Rust-based, ~6x faster than openpyxl) when available,
+    falling back to openpyxl.
+
     Priority (descending):
     1. Sheet name contains "hrms" (case-insensitive).
     2. Sheet has an employee-ID-like column header.
     3. Sheet with the most columns (richer schema = main data).
     4. Sheet with the most non-empty rows.
     """
-    xls = pd.ExcelFile(source)
+    # Prefer calamine (fast Rust reader); fall back to openpyxl
+    try:
+        import python_calamine  # noqa: F401
+        engine = "calamine"
+    except ImportError:
+        engine = "openpyxl"
+
+    xls = pd.ExcelFile(source, engine=engine)
     best_df = None
     best_score: tuple = (-1, -1, -1, -1)
     for sheet_name in xls.sheet_names:
