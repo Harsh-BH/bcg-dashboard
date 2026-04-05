@@ -26,20 +26,42 @@ export function OverallView() {
   const [drillPeople, setDrillPeople] = useState<PersonRow[] | null>(null);
   const [drillTitle, setDrillTitle] = useState("");
   const [drillLoading, setDrillLoading] = useState(false);
+  const [reconDrillPeople, setReconDrillPeople] = useState<PersonRow[] | null>(null);
+  const [reconDrillTitle, setReconDrillTitle] = useState("");
+  const [reconDrillLoading, setReconDrillLoading] = useState(false);
 
   if (!data) return null;
 
-  const { trend, overview_table, pair_tables, snapshots, session_id } = data;
+  const { trend, overview_table, pair_tables, reconciliation_tables, snapshots, session_id } = data;
   const labels = snapshots.map((s) => s.label);
 
   const safeStart = previewStart ?? labels[0] ?? "";
   const safeEnd = previewEnd ?? labels[labels.length - 1] ?? "";
   const pairKey = `${safeStart} → ${safeEnd}`;
   const pairData = pair_tables[pairKey];
+  const recData = reconciliation_tables[pairKey];
 
   const hierRows: HierRow[] = pairData?.hier_rows ?? [];
 
-  const startDate = safeStart !== safeEnd ? safeStart : undefined;
+  const reconClickableKeys = recData
+    ? [
+        recData.base_label,
+        `-Spartan exits till ${recData.end_label}`,
+        "-BAU attrition",
+        "-New hires",
+        `${recData.end_label} (End-point)`,
+      ]
+    : [];
+
+  function resolveSnapshotLabel(colKey: string): string {
+    if (!recData) return colKey;
+    const reconKey = `${recData.base_label}→${recData.end_label}`;
+    if (colKey === recData.base_label) return recData.base_label;
+    if (colKey.startsWith("-Spartan exits")) return `__recon__${reconKey}__spartan_exits`;
+    if (colKey === "-BAU attrition") return `__recon__${reconKey}__bau_attrition`;
+    if (colKey === "-New hires") return `__recon__${reconKey}__new_hires`;
+    return recData.end_label;
+  }
 
   return (
     <div className="space-y-6">
@@ -138,7 +160,7 @@ export function OverallView() {
           <div className="flex gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 whitespace-nowrap">Start</span>
-              <Select value={safeStart} onValueChange={(v) => { if (v) { setPreview(v, safeEnd); setDrillPeople(null); } }}>
+              <Select value={safeStart} onValueChange={(v) => { if (v) { setPreview(v, safeEnd); setDrillPeople(null); setReconDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -149,7 +171,7 @@ export function OverallView() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 whitespace-nowrap">End</span>
-              <Select value={safeEnd} onValueChange={(v) => { if (v) { setPreview(safeStart, v); setDrillPeople(null); } }}>
+              <Select value={safeEnd} onValueChange={(v) => { if (v) { setPreview(safeStart, v); setDrillPeople(null); setReconDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -163,31 +185,67 @@ export function OverallView() {
           {safeStart === safeEnd ? (
             <p className="text-sm text-amber-600">End month must be later than start month.</p>
           ) : pairData ? (
-            <DrillDownTable
-              rows={hierRows.map((r) => ({ label: r.label, _rowtype: r.rowtype, ...r.values }))}
-              clickableKeys={[pairData.start_label, pairData.end_label]}
-              onCellClick={async (row, colKey) => {
-                const label = String(row["label"] ?? "").trim();
-                setDrillTitle(`${label} · ${colKey}`);
-                setDrillLoading(true);
-                setDrillPeople(null);
-                try {
-                  const snapshotLabel = colKey === pairData.start_label
-                    ? pairData.start_label
-                    : pairData.end_label;
-                  const res = await fetchDrill(session_id, snapshotLabel, label);
-                  setDrillPeople(res.people);
-                } catch {
-                  setDrillPeople([]);
-                } finally {
-                  setDrillLoading(false);
-                }
-              }}
-              drillPeople={drillPeople ?? undefined}
-              drillTitle={drillTitle}
-              drillLoading={drillLoading}
-              downloadFilename={`headcount_${pairKey.replace(" → ", "_to_")}.xlsx`}
-            />
+            <div className="space-y-6">
+              <DrillDownTable
+                rows={hierRows.map((r) => ({ label: r.label, _rowtype: r.rowtype, ...r.values }))}
+                clickableKeys={[pairData.start_label, pairData.end_label]}
+                onCellClick={async (row, colKey) => {
+                  const label = String(row["label"] ?? "").trim();
+                  setDrillTitle(`${label} · ${colKey}`);
+                  setDrillLoading(true);
+                  setDrillPeople(null);
+                  try {
+                    const snapshotLabel = colKey === pairData.start_label
+                      ? pairData.start_label
+                      : pairData.end_label;
+                    const res = await fetchDrill(session_id, snapshotLabel, label);
+                    setDrillPeople(res.people);
+                  } catch {
+                    setDrillPeople([]);
+                  } finally {
+                    setDrillLoading(false);
+                  }
+                }}
+                drillPeople={drillPeople ?? undefined}
+                drillTitle={drillTitle}
+                drillLoading={drillLoading}
+                downloadFilename={`headcount_${pairKey.replace(" → ", "_to_")}.xlsx`}
+              />
+
+              {recData && (
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-700">Reconciliation</h4>
+                    <p className="text-xs text-slate-500">
+                      Click any number in Baseline, Spartan exits, BAU attrition, New hires, or End-point
+                    </p>
+                  </div>
+                  <DrillDownTable
+                    rows={recData.rows}
+                    clickableKeys={reconClickableKeys}
+                    onCellClick={async (row, colKey) => {
+                      const label = String(row["Headcount"] ?? "").trim();
+                      setReconDrillTitle(`${label} · ${colKey}`);
+                      setReconDrillLoading(true);
+                      setReconDrillPeople(null);
+                      try {
+                        const snapshotLabel = resolveSnapshotLabel(colKey);
+                        const res = await fetchDrill(session_id, snapshotLabel, label);
+                        setReconDrillPeople(res.people);
+                      } catch {
+                        setReconDrillPeople([]);
+                      } finally {
+                        setReconDrillLoading(false);
+                      }
+                    }}
+                    drillPeople={reconDrillPeople ?? undefined}
+                    drillTitle={reconDrillTitle}
+                    drillLoading={reconDrillLoading}
+                    downloadFilename={`reconciliation_${pairKey.replace(" → ", "_to_")}.xlsx`}
+                  />
+                </div>
+              )}
+            </div>
           ) : (
             <p className="text-sm text-slate-500">No data for this pair.</p>
           )}

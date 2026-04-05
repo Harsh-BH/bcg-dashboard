@@ -365,6 +365,7 @@ async def process_dashboard(
             all_unknown |= unk
         except Exception:
             pass
+    _step("8a. span unknown grades collected")
 
     # Load Conneqt cost-code cluster mapping if provided
     cluster_mapping = None
@@ -383,14 +384,18 @@ async def process_dashboard(
 
     # Trend by cluster (no unknown grade overrides at this stage — frontend will re-request if needed)
     trend_long_df = span_trend_ic_tl_by_cluster(span_snapshots, cluster_mapping, {})
+    _step("8b. span trend by cluster")
 
     # Service line tables
     try:
         sl_wide = span_service_line_wide_table(span_snapshots)
+        _step("8c. span service line wide table")
         sl_span_wide, sl_role_wide = span_service_line_span_and_role_counts(span_snapshots)
+        _step("8d. span service line span & role counts")
     except Exception as e:
         warnings.append({"file": "span", "message": f"Service line computation failed: {e}"})
         sl_wide = sl_span_wide = sl_role_wide = pd.DataFrame()
+        _step("8c-d. span service line (failed)")
 
     # Single snapshot detail (last snapshot)
     last_snap = span_snapshots[-1]

@@ -228,7 +228,9 @@ def span_prepare_and_detect_unknown(
 ) -> tuple[pd.DataFrame, pd.Series, set[str], set[str]]:
     _key = id(raw_hr_df)
     if _key in _SPAN_PREP_CACHE:
+        print(f"    [CACHE HIT] span_prepare id={_key}", flush=True)
         return _SPAN_PREP_CACHE[_key]
+    print(f"    [CACHE MISS] span_prepare id={_key}", flush=True)
 
     df = normalize_span_hrms_cols(raw_hr_df)
     if "EMPLOYEE ID" not in df.columns:
@@ -342,7 +344,9 @@ def span_classify_ic_tl_m1(
         extra_tl_meu_employee_ids,
     )
     if _ckey in _CLASSIFY_CACHE:
+        print(f"    [CACHE HIT] classify id={id(conneqt_df)}", flush=True)
         return _CLASSIFY_CACHE[_ckey]
+    print(f"    [CACHE MISS] classify id={id(conneqt_df)}", flush=True)
 
     _ = reportee_count_series
     df = conneqt_df.copy()
