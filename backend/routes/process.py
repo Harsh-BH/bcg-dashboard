@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
@@ -31,6 +32,7 @@ from logic.span import (
     span_service_line_span_and_role_counts,
     load_conneqt_cluster_mapping,
     _span_normalize_bu_value,
+    clear_span_cache,
 )
 from logic.spartan import (
     process_spartan_file,
@@ -42,6 +44,9 @@ from logic.spartan import (
 from logic.bucketing import classify_bucket_type1, classify_bucket_type2
 
 router = APIRouter()
+
+# Re-export cache so drill.py can share the same object
+from routes.drill import SESSION_CACHE as _SESSION_CACHE
 
 
 def _safe_records(df: pd.DataFrame) -> list[dict]:
@@ -74,18 +79,6 @@ def _safe_records(df: pd.DataFrame) -> list[dict]:
     return [{k: _clean(v) for k, v in row.items()} for row in records]
 
 
-def _people_by_bucket(df: pd.DataFrame, ids: set[str], all_buckets: list[str]) -> dict[str, list[dict]]:
-    """Pre-compute people lists for every expanded bucket label."""
-    result: dict[str, list[dict]] = {}
-    # Standard top-level labels
-    labels = ["Grand total", "Delivery", "CXO", "Support Functions"] + all_buckets
-    for lab in labels:
-        buckets = expand_bucket_selection(lab, all_buckets)
-        ppl = people_for_ids_and_buckets(df, ids, buckets)
-        if not ppl.empty:
-            ppl = ppl.drop(columns=["BUCKET"], errors="ignore")
-            result[lab] = _safe_records(ppl)
-    return result
 
 
 def _hier_rows_to_dicts(table: pd.DataFrame) -> list[dict]:
@@ -111,7 +104,14 @@ async def process_dashboard(
     payroll_start: Optional[str] = Form(None),
     payroll_end: Optional[str] = Form(None),
 ):
+    import time
+    _t0 = time.perf_counter()
+    def _step(label: str):
+        print(f"  [STEP] {label}: {time.perf_counter() - _t0:.1f}s elapsed", flush=True)
+
     warnings: list[dict] = []
+    clear_span_cache()
+    _step("request received")
 
     # ── 1. Parse HRMS uploads (no strict filename format required) ─────────────
     if len(hrms_files) < 2:
@@ -146,15 +146,28 @@ async def process_dashboard(
     snapshots_raw.sort(key=lambda x: (x["month_key"], x["sort_index"]))
     for i, s in enumerate(snapshots_raw):
         s["snapshot_order"] = i
+    _step(f"1. parsed {len(snapshots_raw)} uploads")
 
-    # ── 2. Load all snapshots ─────────────────────────────────────────────────
-    loaded: list[dict] = []
-    for snap in snapshots_raw:
-        try:
-            df, counts, file_type, raw_df = load_snapshot(snap["file_bytes"], is_previous=False)
-            loaded.append({**snap, "df": df, "counts": counts, "file_type": file_type, "raw_df": raw_df})
-        except Exception as e:
-            raise HTTPException(422, f"{snap['filename']}: {e}")
+    # ── 2. Load all snapshots in parallel ────────────────────────────────────
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    def _load_one(snap: dict) -> dict:
+        df, counts, file_type, raw_df = load_snapshot(snap["file_bytes"], is_previous=False)
+        return {**snap, "df": df, "counts": counts, "file_type": file_type, "raw_df": raw_df}
+
+    loaded_map: dict[str, dict] = {}
+    with ThreadPoolExecutor(max_workers=min(len(snapshots_raw), 8)) as pool:
+        futures = {pool.submit(_load_one, snap): snap["filename"] for snap in snapshots_raw}
+        for fut in as_completed(futures):
+            fname = futures[fut]
+            try:
+                loaded_map[fname] = fut.result()
+            except Exception as e:
+                raise HTTPException(422, f"{fname}: {e}")
+
+    # Preserve chronological order
+    loaded: list[dict] = [loaded_map[s["filename"]] for s in snapshots_raw]
+    _step("2. loaded all snapshots (parallel)")
 
     snapshot_metas = [
         {
@@ -167,21 +180,22 @@ async def process_dashboard(
 
     # Pre-compute per-snapshot derived values used in N² pair loops
     for s in loaded:
-        s["_ids"] = set(s["df"]["EMPLOYEE ID"].astype(str))
+        s["_ids_str"] = s["df"]["EMPLOYEE ID"].astype(str)
+        s["_ids"] = set(s["_ids_str"])
         s["_bucket_counts"] = s["df"].groupby("BUCKET")["EMPLOYEE ID"].nunique()
 
-    # Global bucket union — used for all pairs so _people_by_bucket can be cached per snapshot
-    _all_buckets_global: list[str] = sorted(
-        set().union(*(set(s["df"]["BUCKET"]) for s in loaded))
-    )
-    # Cache people dicts per snapshot (keyed by month_short) — same df appears in multiple pairs
-    _people_cache: dict[str, dict[str, list[dict]]] = {}
+    # ── Populate drill-down cache ─────────────────────────────────────────────
+    import hashlib
+    session_id = hashlib.md5(
+        b"".join(s["file_bytes"] for s in snapshots_raw)
+    ).hexdigest()
+    _SESSION_CACHE[session_id] = {s["month_short"]: s["df"] for s in loaded}
+    # Evict old sessions if cache grows too large (keep last 5)
+    if len(_SESSION_CACHE) > 5:
+        oldest = next(iter(_SESSION_CACHE))
+        del _SESSION_CACHE[oldest]
 
-    def _cached_people(snap: dict) -> dict[str, list[dict]]:
-        key = snap["month_short"]
-        if key not in _people_cache:
-            _people_cache[key] = _people_by_bucket(snap["df"], snap["_ids"], _all_buckets_global)
-        return _people_cache[key]
+    _step("2b. session cache populated")
 
     # ── 3. Spartan & Payroll ──────────────────────────────────────────────────
     spartan_df: pd.DataFrame | None = None
@@ -208,6 +222,8 @@ async def process_dashboard(
     pay_start = date.fromisoformat(payroll_start) if payroll_start else date.today().replace(day=1)
     pay_end = date.fromisoformat(payroll_end) if payroll_end else date.today()
 
+    _step("3. spartan & payroll parsed")
+
     # ── 4. Trend ──────────────────────────────────────────────────────────────
     trend_df = build_metric_trend(loaded)
     trend = {
@@ -217,6 +233,8 @@ async def process_dashboard(
         "support": trend_df["Support Functions"].tolist(),
         "cxo": trend_df["CXO"].tolist(),
     }
+
+    _step("4. trend built")
 
     # ── 5. Overview table (consecutive pairs) ─────────────────────────────────
     overview_rows: list[dict] = []
@@ -255,6 +273,8 @@ async def process_dashboard(
             "pct_change_support": pct(support_base, support_end),
         })
 
+    _step("5. overview table done")
+
     # ── 6. Pair tables (all combinations) ────────────────────────────────────
     pair_tables: dict[str, dict] = {}
     for i in range(len(loaded)):
@@ -267,9 +287,9 @@ async def process_dashboard(
                 "start_label": start_s["month_short"],
                 "end_label": end_s["month_short"],
                 "hier_rows": _hier_rows_to_dicts(table),
-                "start_people": _cached_people(start_s),
-                "end_people": _cached_people(end_s),
             }
+
+    _step(f"6. pair tables done ({len(pair_tables)} pairs)")
 
     # ── 7. Reconciliation tables ──────────────────────────────────────────────
     reconciliation_tables: dict[str, dict] = {}
@@ -312,17 +332,26 @@ async def process_dashboard(
                 end_label=f"{end_s['month_short']} (End-point)",
             )
 
+            # Store reconciliation ID sets in cache for drill-down
+            recon_key = f"{base_s['month_short']}→{end_s['month_short']}"
+            _SESSION_CACHE[session_id][f"__recon__{recon_key}__spartan_exits"] = base_s["df"][
+                base_s["_ids_str"].isin(spartan_exit_ids).values
+            ]
+            _SESSION_CACHE[session_id][f"__recon__{recon_key}__bau_attrition"] = base_s["df"][
+                base_s["_ids_str"].isin(bau_attrition_ids).values
+            ]
+            _SESSION_CACHE[session_id][f"__recon__{recon_key}__new_hires"] = end_s["df"][
+                end_s["_ids_str"].isin(new_hire_ids).values
+            ]
+
             reconciliation_tables[key] = {
                 "base_label": base_s["month_short"],
                 "end_label": end_s["month_short"],
                 "rows": _recon_rows_to_dicts(rec_table),
                 "salary_rows": _recon_rows_to_dicts(salary_table),
-                "baseline_people": _cached_people(base_s),
-                "spartan_exit_people": _people_by_bucket(base_s["df"], spartan_exit_ids, _all_buckets_global),
-                "bau_attrition_people": _people_by_bucket(base_s["df"], bau_attrition_ids, _all_buckets_global),
-                "new_hire_people": _people_by_bucket(end_s["df"], new_hire_ids, _all_buckets_global),
-                "end_people": _cached_people(end_s),
             }
+
+    _step(f"7. reconciliation tables done ({len(reconciliation_tables)} pairs)")
 
     # ── 8. Span data ──────────────────────────────────────────────────────────
     # raw_df was preserved from the initial load — no need to re-parse Excel
@@ -336,6 +365,7 @@ async def process_dashboard(
             all_unknown |= unk
         except Exception:
             pass
+    _step("8a. span unknown grades collected")
 
     # Load Conneqt cost-code cluster mapping if provided
     cluster_mapping = None
@@ -354,14 +384,18 @@ async def process_dashboard(
 
     # Trend by cluster (no unknown grade overrides at this stage — frontend will re-request if needed)
     trend_long_df = span_trend_ic_tl_by_cluster(span_snapshots, cluster_mapping, {})
+    _step("8b. span trend by cluster")
 
     # Service line tables
     try:
         sl_wide = span_service_line_wide_table(span_snapshots)
+        _step("8c. span service line wide table")
         sl_span_wide, sl_role_wide = span_service_line_span_and_role_counts(span_snapshots)
+        _step("8d. span service line span & role counts")
     except Exception as e:
         warnings.append({"file": "span", "message": f"Service line computation failed: {e}"})
         sl_wide = sl_span_wide = sl_role_wide = pd.DataFrame()
+        _step("8c-d. span service line (failed)")
 
     # Single snapshot detail (last snapshot)
     last_snap = span_snapshots[-1]
@@ -392,6 +426,8 @@ async def process_dashboard(
         "cluster_summary": cluster_summary_rows,
         "cluster_status": cluster_status,
     }
+
+    _step("8. span data done")
 
     # ── 9. Spartan/HRMS checks ────────────────────────────────────────────────
     # Payroll checks are pair-independent — compute once
@@ -426,8 +462,12 @@ async def process_dashboard(
                 "payroll": payroll_result,
             }
 
+    _step("9. spartan checks done")
+
     # ── 10. Build final response ──────────────────────────────────────────────
+    _step("10. DONE — sending response")
     return {
+        "session_id": session_id,          # used for /api/drill calls
         "snapshots": snapshot_metas,
         "trend": trend,
         "overview_table": overview_rows,

@@ -5,42 +5,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDashboardStore } from "@/store/dashboardStore";
 import { DrillDownTable } from "@/components/tables/DrillDownTable";
+import { fetchDrill } from "@/lib/api";
 import type { PersonRow } from "@/lib/types";
 import { AnomalyAlertList } from "@/components/ai/AnomalyAlertList";
-
-const COL_LABELS: Record<string, string> = {
-  Baseline: "Baseline",
-  SpartanExits: "Spartan exits",
-  BAUAttrition: "BAU attrition",
-  NewHires: "New hires",
-  Endpoint: "End-point",
-};
 
 export function HrmsWalk() {
   const { data, reconBase, reconEnd, setRecon } = useDashboardStore();
   const [drillPeople, setDrillPeople] = useState<PersonRow[] | null>(null);
   const [drillTitle, setDrillTitle] = useState("");
+  const [drillLoading, setDrillLoading] = useState(false);
 
   if (!data) return null;
 
-  const { snapshots, reconciliation_tables } = data;
+  const { snapshots, reconciliation_tables, session_id } = data;
   const labels = snapshots.map((s) => s.label);
   const safeBase = reconBase ?? labels[0] ?? "";
   const safeEnd = reconEnd ?? labels[labels.length - 1] ?? "";
   const pairKey = `${safeBase} → ${safeEnd}`;
   const recData = reconciliation_tables[pairKey];
 
-  const peopleMapForCol: Record<string, Record<string, PersonRow[]>> = recData
-    ? {
-        [recData.base_label]: recData.baseline_people as Record<string, PersonRow[]>,
-        [`-Spartan exits till ${recData.end_label}`]: recData.spartan_exit_people as Record<string, PersonRow[]>,
-        ["-BAU attrition"]: recData.bau_attrition_people as Record<string, PersonRow[]>,
-        ["-New hires"]: recData.new_hire_people as Record<string, PersonRow[]>,
-        [`${recData.end_label} (End-point)`]: recData.end_people as Record<string, PersonRow[]>,
-      }
-    : {};
+  const clickableKeys = recData
+    ? [
+        recData.base_label,
+        `-Spartan exits till ${recData.end_label}`,
+        "-BAU attrition",
+        "-New hires",
+        `${recData.end_label} (End-point)`,
+      ]
+    : [];
 
-  const clickableKeys = recData ? Object.keys(peopleMapForCol) : [];
+  function resolveSnapshotLabel(colKey: string): string {
+    if (!recData) return colKey;
+    const reconKey = `${recData.base_label}→${recData.end_label}`;
+    if (colKey === recData.base_label) return recData.base_label;
+    if (colKey.startsWith("-Spartan exits")) return `__recon__${reconKey}__spartan_exits`;
+    if (colKey === "-BAU attrition") return `__recon__${reconKey}__bau_attrition`;
+    if (colKey === "-New hires") return `__recon__${reconKey}__new_hires`;
+    return recData.end_label;
+  }
 
   return (
     <div className="space-y-6">
@@ -82,14 +84,24 @@ export function HrmsWalk() {
             <DrillDownTable
               rows={recData.rows}
               clickableKeys={clickableKeys}
-              onCellClick={(row, colKey) => {
+              onCellClick={async (row, colKey) => {
                 const label = String(row["Headcount"] ?? "").trim();
-                const people = peopleMapForCol[colKey]?.[label] ?? [];
-                setDrillPeople(people as PersonRow[]);
                 setDrillTitle(`${label} · ${colKey}`);
+                setDrillLoading(true);
+                setDrillPeople(null);
+                try {
+                  const snapshotLabel = resolveSnapshotLabel(colKey);
+                  const res = await fetchDrill(session_id, snapshotLabel, label);
+                  setDrillPeople(res.people);
+                } catch {
+                  setDrillPeople([]);
+                } finally {
+                  setDrillLoading(false);
+                }
               }}
               drillPeople={drillPeople ?? undefined}
               drillTitle={drillTitle}
+              drillLoading={drillLoading}
               downloadFilename={`reconciliation_${pairKey.replace(" → ", "_to_")}.xlsx`}
             />
           ) : (

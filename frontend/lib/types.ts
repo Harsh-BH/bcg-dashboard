@@ -22,19 +22,13 @@ export interface PairTableData {
   start_label: string;
   end_label: string;
   hier_rows: HierRow[];
-  start_people: Record<string, PersonRow[]>;
-  end_people: Record<string, PersonRow[]>;
 }
 
 export interface ReconciliationData {
   base_label: string;
   end_label: string;
   rows: Record<string, number | string | null>[];
-  baseline_people: Record<string, PersonRow[]>;
-  spartan_exit_people: Record<string, PersonRow[]>;
-  bau_attrition_people: Record<string, PersonRow[]>;
-  new_hire_people: Record<string, PersonRow[]>;
-  end_people: Record<string, PersonRow[]>;
+  salary_rows?: Record<string, number | string | null>[];
 }
 
 export interface SpanData {
@@ -78,6 +72,7 @@ export interface ValidationWarning {
 }
 
 export interface ProcessResponse {
+  session_id: string;
   snapshots: SnapshotMeta[];
   trend: TrendData;
   overview_table: OverviewRow[];
@@ -86,6 +81,11 @@ export interface ProcessResponse {
   span: SpanData;
   spartan_checks: Record<string, SpartanChecksData>;
   validation_warnings: ValidationWarning[];
+}
+
+export interface DrillResponse {
+  people: PersonRow[];
+  total: number;
 }
 
 export interface OverviewRow {

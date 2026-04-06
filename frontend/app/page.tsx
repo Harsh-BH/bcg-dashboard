@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -150,15 +150,70 @@ function DashboardContent() {
   );
 }
 
+const LOADING_VERBS = [
+  "Crunching data…",
+  "Parsing snapshots…",
+  "Normalizing columns…",
+  "Classifying buckets…",
+  "Building hierarchy tables…",
+  "Computing headcount trends…",
+  "Reconciling movements…",
+  "Analyzing span of control…",
+  "Calculating MoM changes…",
+  "Preparing drill-down index…",
+  "Almost there…",
+];
+
+function LoadingScreen() {
+  const [verbIdx, setVerbIdx] = useState(0);
+  const [dots, setDots] = useState(0);
+
+  useEffect(() => {
+    const verbTimer = setInterval(() => {
+      setVerbIdx((i) => (i + 1) % LOADING_VERBS.length);
+    }, 1800);
+    const dotTimer = setInterval(() => {
+      setDots((d) => (d + 1) % 4);
+    }, 400);
+    return () => { clearInterval(verbTimer); clearInterval(dotTimer); };
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[60vh] gap-6 select-none">
+      {/* Spinning ring */}
+      <div className="relative w-16 h-16">
+        <div className="absolute inset-0 rounded-full border-4 border-slate-200" />
+        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-500 animate-spin" />
+      </div>
+
+      {/* Cycling verb */}
+      <div className="text-center">
+        <p className="text-slate-700 font-semibold text-base tabular-nums min-w-[220px]">
+          {LOADING_VERBS[verbIdx].replace("…", "").trimEnd()}
+          <span className="text-blue-500">{".".repeat(dots + 1)}</span>
+        </p>
+        <p className="text-slate-400 text-xs mt-1">Processing your HRMS snapshots</p>
+      </div>
+
+      {/* Progress bar */}
+      <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
+        <div className="h-full bg-blue-500 rounded-full animate-[loading-bar_2s_ease-in-out_infinite]" />
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
-  const { data, chatOpen } = useDashboardStore();
+  const { data, chatOpen, isLoading } = useDashboardStore();
 
   return (
     <div className="flex min-h-screen">
       <Sidebar />
 
       <main className="flex-1 min-w-0 overflow-y-auto p-6 lg:p-8">
-        {!data ? (
+        {isLoading ? (
+          <LoadingScreen />
+        ) : !data ? (
           <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center gap-4">
             <div className="rounded-2xl border border-slate-200 bg-white p-10 shadow-sm max-w-md">
               <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">

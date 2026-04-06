@@ -31,9 +31,12 @@ export function useDashboardData() {
   const setPreview = useDashboardStore((s) => s.setPreview);
   const setRecon = useDashboardStore((s) => s.setRecon);
   const setSpanMonths = useDashboardStore((s) => s.setSpanMonths);
+  const setIsLoading = useDashboardStore((s) => s.setIsLoading);
 
   return useMutation({
     mutationFn: (payload: ProcessPayload) => processFiles(payload),
+    onMutate: () => setIsLoading(true),
+    onSettled: () => setIsLoading(false),
     onSuccess: (data) => {
       setData(data);
       const labels = data.snapshots.map((s) => s.label);

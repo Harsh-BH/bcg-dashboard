@@ -1,3 +1,4 @@
+from __future__ import annotations
 import re
 from collections import defaultdict
 from functools import lru_cache
@@ -40,6 +41,23 @@ from logic.constants import (
 from logic.normalization import normalize_hr_cols, normalize_span_hrms_cols
 from logic.bucketing import classify_bucket_type1, classify_bucket_type2, _detect_file_type_from_normalized
 from logic.utils import span_normalize_hrms_ids, keyify
+
+
+# ── span prep cache ──────────────────────────────────────────────────────────
+# Keyed by id(raw_df). Safe because snapshot DataFrames are held for the full
+# request lifetime so id() won't be recycled. Call clear_span_cache() between
+# requests to avoid stale data.
+
+_SPAN_PREP_CACHE: dict[int, tuple] = {}
+_CLASSIFY_CACHE: dict[tuple, "pd.Series"] = {}
+
+
+def clear_span_cache() -> None:
+    """Clear per-request caches keyed by id(DataFrame). The LRU cache on
+    _span_classify_service_line_row_memo is a pure function of string
+    inputs and safe to keep across requests."""
+    _SPAN_PREP_CACHE.clear()
+    _CLASSIFY_CACHE.clear()
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -208,6 +226,12 @@ def _build_reportee_counts(df: pd.DataFrame) -> pd.Series:
 def span_prepare_and_detect_unknown(
     raw_hr_df: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.Series, set[str], set[str]]:
+    _key = id(raw_hr_df)
+    if _key in _SPAN_PREP_CACHE:
+        print(f"    [CACHE HIT] span_prepare id={_key}", flush=True)
+        return _SPAN_PREP_CACHE[_key]
+    print(f"    [CACHE MISS] span_prepare id={_key}", flush=True)
+
     df = normalize_span_hrms_cols(raw_hr_df)
     if "EMPLOYEE ID" not in df.columns:
         raise ValueError("Span HRMS file must have an EMPLOYEE ID column.")
@@ -221,12 +245,16 @@ def span_prepare_and_detect_unknown(
         conneqt_df = conneqt_df.loc[_span_non_manpower_mask(conneqt_df)].copy()
 
     if conneqt_df.empty:
-        return conneqt_df, pd.Series(dtype=int), set(), set()
+        result = (conneqt_df, pd.Series(dtype=int), set(), set())
+        _SPAN_PREP_CACHE[_key] = result
+        return result
 
     span_normalize_hrms_ids(conneqt_df)
     reportee_count_series = _build_reportee_counts(conneqt_df)
     all_grades_raw, unknown_grades = _detect_unknown_grades(conneqt_df)
-    return conneqt_df, reportee_count_series, all_grades_raw, unknown_grades
+    result = (conneqt_df, reportee_count_series, all_grades_raw, unknown_grades)
+    _SPAN_PREP_CACHE[_key] = result
+    return result
 
 
 def span_prepare_and_detect_unknown_all_business_units(
@@ -306,6 +334,20 @@ def span_classify_ic_tl_m1(
     extra_tl_meu_exclusion_phrases: frozenset[str] | None = None,
     extra_tl_meu_employee_ids: frozenset[str] | None = None,
 ) -> pd.Series:
+    ugr_key = frozenset((unknown_grade_to_rule or {}).items())
+    _ckey = (
+        id(conneqt_df),
+        ugr_key,
+        extra_tl_designation_phrases,
+        extra_tl_employee_ids,
+        extra_tl_meu_exclusion_phrases,
+        extra_tl_meu_employee_ids,
+    )
+    if _ckey in _CLASSIFY_CACHE:
+        print(f"    [CACHE HIT] classify id={id(conneqt_df)}", flush=True)
+        return _CLASSIFY_CACHE[_ckey]
+    print(f"    [CACHE MISS] classify id={id(conneqt_df)}", flush=True)
+
     _ = reportee_count_series
     df = conneqt_df.copy()
     if "MANAGER1 ECODE" not in df.columns:
@@ -417,7 +459,9 @@ def span_classify_ic_tl_m1(
 
     role_ser = pd.Series(out_emp, index=eids.values)
     out = df["EMPLOYEE ID"].astype(str).map(role_ser).fillna("M1+")
-    return pd.Series(out.values, index=conneqt_df.index)
+    result = pd.Series(out.values, index=conneqt_df.index)
+    _CLASSIFY_CACHE[_ckey] = result
+    return result
 
 
 def span_classify_ic_tl_m1_full_graph(
