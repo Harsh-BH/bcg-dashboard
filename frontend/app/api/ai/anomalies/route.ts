@@ -68,11 +68,13 @@ export async function POST(request: Request) {
     });
 
     const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
+    if (!toolCall || toolCall.type !== "function") {
       return Response.json({ anomalies: [] });
     }
 
-    const { anomalies } = JSON.parse(toolCall.function.arguments) as { anomalies: unknown[] };
+    const { anomalies } = JSON.parse(
+      (toolCall as OpenAI.Chat.Completions.ChatCompletionMessageToolCall & { type: "function" }).function.arguments,
+    ) as { anomalies: unknown[] };
     return Response.json({ anomalies: anomalies ?? [] });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
