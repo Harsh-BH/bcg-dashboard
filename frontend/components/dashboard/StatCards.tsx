@@ -66,25 +66,14 @@ export function StatCards({ data }: StatCardsProps) {
     ? overview_table[overview_table.length - 1]
     : null;
 
-  const totalHc = lastOverview ? lastOverview.end_hc : latestNonZero(trend.total);
-  const totalPctChange = lastOverview?.pct_change != null
-    ? lastOverview.pct_change * 100
-    : null;
-
-  const deliveryPctChange = lastOverview?.pct_change_delivery != null
-    ? lastOverview.pct_change_delivery * 100
-    : null;
-
-  const supportPctChange = lastOverview?.pct_change_support != null
-    ? lastOverview.pct_change_support * 100
-    : null;
-
-  const cxoPctChange = lastOverview?.pct_change_cxo != null
-    ? lastOverview.pct_change_cxo * 100
-    : null;
+  // overview_table pct values are already percentages (e.g. -100.0), NOT decimals
+  const totalPctChange = lastOverview?.pct_change ?? null;
+  const deliveryPctChange = lastOverview?.pct_change_delivery ?? null;
+  const supportPctChange = lastOverview?.pct_change_support ?? null;
+  const cxoPctChange = lastOverview?.pct_change_cxo ?? null;
 
   const cards = [
-    { label: "Total Headcount", value: totalHc, change: totalPctChange, colorClass: "bg-stat-purple" },
+    { label: "Total Headcount", value: latestNonZero(trend.total), change: totalPctChange, colorClass: "bg-stat-purple" },
     { label: "Delivery", value: latestNonZero(trend.delivery), change: deliveryPctChange, colorClass: "bg-stat-blue" },
     { label: "Support Functions", value: latestNonZero(trend.support), change: supportPctChange, colorClass: "bg-stat-orange" },
     { label: "CXO", value: latestNonZero(trend.cxo), change: cxoPctChange, colorClass: "bg-stat-green" },
