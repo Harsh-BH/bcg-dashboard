@@ -36,15 +36,15 @@ function CustomTooltip({ active, payload, label, color, metricKey }: any) {
   if (!active || !payload?.length) return null;
   const value = payload[0]?.value as number;
   return (
-    <div className="rounded-xl border border-slate-200 bg-white shadow-xl px-4 py-3 min-w-[150px]">
-      <p className="text-slate-500 text-xs font-medium mb-2">{label}</p>
+    <div className="rounded-xl border border-border bg-card shadow-xl px-4 py-3 min-w-[150px]">
+      <p className="text-muted-foreground text-xs font-medium mb-2">{label}</p>
       <div className="flex items-center gap-2.5">
         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
         <div>
-          <p className="font-bold text-slate-800 text-lg tabular-nums leading-none">
+          <p className="font-bold text-foreground text-lg tabular-nums leading-none">
             {value?.toLocaleString()}
           </p>
-          <p className="text-slate-400 text-xs mt-0.5">{metricLabels[metricKey] ?? metricKey}</p>
+          <p className="text-muted-foreground text-xs mt-0.5">{metricLabels[metricKey] ?? metricKey}</p>
         </div>
       </div>
     </div>

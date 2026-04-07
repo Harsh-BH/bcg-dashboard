@@ -110,7 +110,7 @@ export function OverallView() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full text-sm">
               <thead className="bg-table-header text-white">
                 <tr>
@@ -128,9 +128,9 @@ export function OverallView() {
               </thead>
               <tbody>
                 {overview_table.map((row, ri) => (
-                  <tr key={ri} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{row.start_month}</td>
-                    <td className="px-3 py-2 text-slate-700 whitespace-nowrap">{row.end_month}</td>
+                  <tr key={ri} className="border-b border-border hover:bg-muted/50">
+                    <td className="px-3 py-2 text-foreground whitespace-nowrap">{row.start_month}</td>
+                    <td className="px-3 py-2 text-foreground whitespace-nowrap">{row.end_month}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(row.start_hc)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(row.end_hc)}</td>
                     <td className={`px-3 py-2 text-right tabular-nums font-medium ${row.abs_change > 0 ? "text-red-600" : row.abs_change < 0 ? "text-green-600" : ""}`}>
@@ -154,12 +154,12 @@ export function OverallView() {
           <CardTitle className="text-base font-semibold text-foreground">
             Detailed pair preview
           </CardTitle>
-          <p className="text-xs text-slate-500">Click a headcount number to see the employee list</p>
+          <p className="text-xs text-muted-foreground">Click a headcount number to see the employee list</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 whitespace-nowrap">Start</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Start</span>
               <Select value={safeStart} onValueChange={(v) => { if (v) { setPreview(v, safeEnd); setDrillPeople(null); setReconDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs">
                   <SelectValue />
@@ -170,7 +170,7 @@ export function OverallView() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 whitespace-nowrap">End</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">End</span>
               <Select value={safeEnd} onValueChange={(v) => { if (v) { setPreview(safeStart, v); setDrillPeople(null); setReconDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs">
                   <SelectValue />
@@ -215,8 +215,8 @@ export function OverallView() {
               {recData && (
                 <div className="space-y-2">
                   <div>
-                    <h4 className="text-sm font-semibold text-slate-700">Reconciliation</h4>
-                    <p className="text-xs text-slate-500">
+                    <h4 className="text-sm font-semibold text-foreground">Reconciliation</h4>
+                    <p className="text-xs text-muted-foreground">
                       Click any number in Baseline, Spartan exits, BAU attrition, New hires, or End-point
                     </p>
                   </div>
@@ -247,7 +247,7 @@ export function OverallView() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">No data for this pair.</p>
+            <p className="text-sm text-muted-foreground">No data for this pair.</p>
           )}
         </CardContent>
       </Card>

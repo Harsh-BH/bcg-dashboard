@@ -73,7 +73,7 @@ function DashboardContent({ onTabChange }: { onTabChange: (tab: string) => void 
             )}
 
             {/* Stat cards */}
-            {data && <StatCards trend={data.trend} />}
+            {data && <StatCards data={data} />}
 
             {/* AI action bar */}
             <div className="flex items-center justify-end gap-2">

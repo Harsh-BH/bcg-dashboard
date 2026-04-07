@@ -1,7 +1,7 @@
 "use client";
 
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import type { TrendData } from "@/lib/types";
+import type { ProcessResponse } from "@/lib/types";
 
 interface StatCardProps {
   label: string;
@@ -44,27 +44,50 @@ function StatCard({ label, value, change, colorClass }: StatCardProps) {
   );
 }
 
-interface StatCardsProps {
-  trend: TrendData;
+/** Walk backwards to find the latest non-zero value in a trend array. */
+function latestNonZero(arr: number[]): number {
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (arr[i] !== 0) return arr[i];
+  }
+  return arr[arr.length - 1] ?? 0;
 }
 
-export function StatCards({ trend }: StatCardsProps) {
+interface StatCardsProps {
+  data: ProcessResponse;
+}
+
+export function StatCards({ data }: StatCardsProps) {
+  const { trend, overview_table } = data;
   const len = trend.total.length;
   if (len === 0) return null;
 
-  const latest = len - 1;
-  const prev = len >= 2 ? len - 2 : null;
+  // Use the last overview row for total headcount and percentage changes
+  const lastOverview = overview_table.length > 0
+    ? overview_table[overview_table.length - 1]
+    : null;
 
-  function pctChange(arr: number[]): number | null {
-    if (prev === null || arr[prev] === 0) return null;
-    return ((arr[latest] - arr[prev]) / arr[prev]) * 100;
-  }
+  const totalHc = lastOverview ? lastOverview.end_hc : latestNonZero(trend.total);
+  const totalPctChange = lastOverview?.pct_change != null
+    ? lastOverview.pct_change * 100
+    : null;
+
+  const deliveryPctChange = lastOverview?.pct_change_delivery != null
+    ? lastOverview.pct_change_delivery * 100
+    : null;
+
+  const supportPctChange = lastOverview?.pct_change_support != null
+    ? lastOverview.pct_change_support * 100
+    : null;
+
+  const cxoPctChange = lastOverview?.pct_change_cxo != null
+    ? lastOverview.pct_change_cxo * 100
+    : null;
 
   const cards = [
-    { label: "Total Headcount", value: trend.total[latest], change: pctChange(trend.total), colorClass: "bg-stat-purple" },
-    { label: "Delivery", value: trend.delivery[latest], change: pctChange(trend.delivery), colorClass: "bg-stat-blue" },
-    { label: "Support Functions", value: trend.support[latest], change: pctChange(trend.support), colorClass: "bg-stat-orange" },
-    { label: "CXO", value: trend.cxo[latest], change: pctChange(trend.cxo), colorClass: "bg-stat-green" },
+    { label: "Total Headcount", value: totalHc, change: totalPctChange, colorClass: "bg-stat-purple" },
+    { label: "Delivery", value: latestNonZero(trend.delivery), change: deliveryPctChange, colorClass: "bg-stat-blue" },
+    { label: "Support Functions", value: latestNonZero(trend.support), change: supportPctChange, colorClass: "bg-stat-orange" },
+    { label: "CXO", value: latestNonZero(trend.cxo), change: cxoPctChange, colorClass: "bg-stat-green" },
   ];
 
   return (

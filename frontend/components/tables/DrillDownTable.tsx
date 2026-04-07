@@ -104,7 +104,7 @@ export function DrillDownTable({
   const rowtypeStyle = (rt: string | undefined) => {
     if (rt === "grand")  return "bg-[hsl(var(--row-grand))] font-bold";
     if (rt === "header") return "bg-[hsl(var(--row-header))] font-semibold";
-    return "bg-white hover:bg-slate-50/80 transition-colors duration-100";
+    return "bg-card hover:bg-muted/50 transition-colors duration-100";
   };
 
   const peopleKeys = drillPeople?.[0] ? Object.keys(drillPeople[0]).filter((k) => k !== "BUCKET") : [];
@@ -112,9 +112,9 @@ export function DrillDownTable({
   return (
     <div className={cn("space-y-3", className)}>
       {/* Main table */}
-      <div className="rounded-xl overflow-hidden shadow-sm border border-slate-200">
+      <div className="rounded-xl overflow-hidden shadow-sm border border-border">
         {downloadFilename && rows.length > 0 && (
-          <div className="flex justify-end px-3 py-2 bg-slate-50 border-b border-slate-200">
+          <div className="flex justify-end px-3 py-2 bg-muted/50 border-b border-border">
             <Button
               size="sm"
               variant="outline"
@@ -150,7 +150,7 @@ export function DrillDownTable({
                 return (
                   <tr
                     key={row.id}
-                    className={cn(rowtypeStyle(rt), "border-b border-slate-100 last:border-0")}
+                    className={cn(rowtypeStyle(rt), "border-b border-border last:border-0")}
                   >
                     {row.getVisibleCells().map((cell, ci) => (
                       <td
@@ -170,20 +170,20 @@ export function DrillDownTable({
 
       {/* Drill-down loading */}
       {drillLoading && (
-        <div className="rounded-xl border-l-4 border-blue-500 border border-slate-200 bg-blue-50/20 shadow-sm p-6 animate-in fade-in-0 duration-200">
+        <div className="rounded-xl border-l-4 border-blue-500 border border-border bg-blue-500/10 shadow-sm p-6 animate-in fade-in-0 duration-200">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 rounded-full border-2 border-transparent border-t-blue-500 animate-spin" />
-            <span className="text-sm text-slate-600">{drillTitle ? `Loading ${drillTitle}…` : "Loading people…"}</span>
+            <span className="text-sm text-muted-foreground">{drillTitle ? `Loading ${drillTitle}…` : "Loading people…"}</span>
           </div>
         </div>
       )}
 
       {/* Drill-down panel */}
       {!drillLoading && drillPeople && drillPeople.length > 0 && (
-        <div className="rounded-xl border-l-4 border-blue-500 border border-slate-200 bg-blue-50/20 shadow-sm overflow-hidden animate-in slide-in-from-top-2 fade-in-0 duration-200">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white">
+        <div className="rounded-xl border-l-4 border-blue-500 border border-border bg-blue-500/10 shadow-sm overflow-hidden animate-in slide-in-from-top-2 fade-in-0 duration-200">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-800 text-sm">{drillTitle ?? "People"}</span>
+              <span className="font-semibold text-foreground text-sm">{drillTitle ?? "People"}</span>
               <Badge variant="secondary" className="text-xs">{drillPeople.length.toLocaleString()}</Badge>
             </div>
             {downloadFilename && (
@@ -201,10 +201,10 @@ export function DrillDownTable({
           </div>
           <div className="overflow-x-auto max-h-80">
             <table className="w-full text-xs">
-              <thead className="sticky top-0 bg-slate-100 shadow-[0_1px_0_0_#e2e8f0]">
+              <thead className="sticky top-0 bg-muted shadow-[0_1px_0_0_#e2e8f0]">
                 <tr>
                   {peopleKeys.map((k) => (
-                    <th key={k} className="px-3 py-2 text-left text-slate-600 font-semibold whitespace-nowrap">
+                    <th key={k} className="px-3 py-2 text-left text-muted-foreground font-semibold whitespace-nowrap">
                       {k}
                     </th>
                   ))}
@@ -215,12 +215,12 @@ export function DrillDownTable({
                   <tr
                     key={ri}
                     className={cn(
-                      "border-b border-slate-100 hover:bg-blue-50/40 transition-colors duration-100",
-                      ri % 2 === 0 ? "bg-white" : "bg-slate-50/60"
+                      "border-b border-border hover:bg-blue-500/10 transition-colors duration-100",
+                      ri % 2 === 0 ? "bg-card" : "bg-muted/30"
                     )}
                   >
                     {peopleKeys.map((k) => (
-                      <td key={k} className="px-3 py-1.5 text-slate-700 whitespace-nowrap">
+                      <td key={k} className="px-3 py-1.5 text-foreground whitespace-nowrap">
                         {String(row[k] ?? "—")}
                       </td>
                     ))}

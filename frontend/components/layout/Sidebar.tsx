@@ -114,34 +114,33 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-72 shrink-0 flex flex-col h-screen sticky top-0 overflow-y-auto"
-      style={{ background: "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)" }}
+      className="w-72 shrink-0 flex flex-col h-screen sticky top-0 overflow-y-auto bg-card border-r border-border"
     >
       {/* ── Header ────────────────────────────────────────────── */}
       <div className="px-5 pt-6 pb-4">
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-            <BarChart3 className="text-blue-400" size={18} />
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <BarChart3 className="text-primary" size={18} />
           </div>
-          <h1 className="text-white font-bold text-base leading-tight">Headcount Dashboard</h1>
+          <h1 className="text-foreground font-bold text-base leading-tight">Headcount Dashboard</h1>
         </div>
-        <p className="text-slate-400 text-xs ml-[2.625rem]">BCG HR Analytics</p>
+        <p className="text-muted-foreground text-xs ml-[2.625rem]">BCG HR Analytics</p>
       </div>
 
-      <Separator className="bg-slate-700/60" />
+      <Separator className="bg-border" />
 
       <div className="px-5 py-4 flex flex-col gap-5 flex-1">
 
         {/* ── HRMS Folder ───────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-slate-200 font-semibold text-sm">
+            <Label className="text-foreground font-semibold text-sm">
               HRMS Snapshots <span className="text-red-400">*</span>
             </Label>
             {hrmsFiles.length > 0 && (
               <button
                 onClick={clearAll}
-                className="text-slate-500 hover:text-red-400 text-xs flex items-center gap-1 transition-colors"
+                className="text-muted-foreground hover:text-red-400 text-xs flex items-center gap-1 transition-colors"
               >
                 <X size={11} /> Clear all
               </button>
@@ -158,8 +157,8 @@ export function Sidebar() {
               "border-2 border-dashed rounded-xl p-5 text-center cursor-pointer",
               "transition-all duration-200 select-none",
               isDragOver
-                ? "border-blue-400 bg-blue-500/15 scale-[1.01] ring-2 ring-blue-400/40"
-                : "border-slate-600 hover:border-slate-400 hover:bg-slate-800/50",
+                ? "border-primary bg-primary/15 scale-[1.01] ring-2 ring-primary/40"
+                : "border-border hover:border-muted-foreground hover:bg-muted/50",
             ].join(" ")}
           >
             {/* Hidden multi-file input */}
@@ -173,16 +172,16 @@ export function Sidebar() {
             />
 
             <div className={`mx-auto mb-2 w-10 h-10 rounded-xl flex items-center justify-center ${
-              isDragOver ? "bg-blue-500/20" : "bg-slate-700/60"
+              isDragOver ? "bg-primary/10" : "bg-muted"
             }`}>
-              <FolderOpen size={20} className={isDragOver ? "text-blue-400" : "text-slate-400"} />
+              <FolderOpen size={20} className={isDragOver ? "text-primary" : "text-muted-foreground"} />
             </div>
-            <p className="text-slate-300 text-xs font-semibold">
+            <p className="text-foreground text-xs font-semibold">
               {isDragOver ? "Release to add files…" : "Drop HRMS files here"}
             </p>
-            <p className="text-slate-500 text-xs mt-0.5">or click to browse (multi-select)</p>
-            <p className="text-slate-600 text-xs mt-2 leading-relaxed">
-              Any <span className="font-mono text-slate-500">.xlsx</span> files accepted
+            <p className="text-muted-foreground text-xs mt-0.5">or click to browse (multi-select)</p>
+            <p className="text-muted-foreground text-xs mt-2 leading-relaxed">
+              Any <span className="font-mono text-muted-foreground">.xlsx</span> files accepted
             </p>
           </div>
 
@@ -194,21 +193,21 @@ export function Sidebar() {
                 const missing = w?.missing ?? [];
                 return (
                   <Fragment key={f.name}>
-                    <li className="flex items-center gap-1.5 bg-slate-800 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150">
+                    <li className="flex items-center gap-1.5 bg-muted rounded-lg px-2.5 py-1.5 animate-in fade-in-0 slide-in-from-top-1 duration-150">
                       <FileSpreadsheet size={13} className={missing.length ? "text-red-400 shrink-0" : (w?.recommended?.length ? "text-amber-400 shrink-0" : "text-emerald-400 shrink-0")} />
-                      <span className="text-slate-300 text-xs flex-1 truncate">{f.name}</span>
+                      <span className="text-foreground text-xs flex-1 truncate">{f.name}</span>
                       <button
                         onClick={() => removeHrms(f.name)}
-                        className="flex items-center justify-center w-5 h-5 rounded-full text-slate-500 hover:bg-slate-600 hover:text-red-400 transition-colors"
+                        className="flex items-center justify-center w-5 h-5 rounded-full text-muted-foreground hover:bg-accent hover:text-red-400 transition-colors"
                       >
                         <X size={11} />
                       </button>
                     </li>
                     {missing.length > 0 && (
-                      <li key={`${f.name}-error`} className="bg-red-900/30 border border-red-700/40 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
+                      <li key={`${f.name}-error`} className="bg-red-500/10 border border-red-500/20 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
                         <div className="flex items-start gap-1.5">
                           <ShieldAlert size={11} className="text-red-400 shrink-0 mt-0.5" />
-                          <div className="text-red-300 text-[10px] leading-relaxed">
+                          <div className="text-red-500 dark:text-red-400 text-[10px] leading-relaxed">
                             <div className="font-semibold mb-0.5">Required columns missing:</div>
                             {missing.map((m: string) => <div key={m}>• {m}</div>)}
                           </div>
@@ -216,10 +215,10 @@ export function Sidebar() {
                       </li>
                     )}
                     {missing.length === 0 && (w?.recommended ?? []).length > 0 && (
-                      <li key={`${f.name}-rec`} className="bg-amber-900/20 border border-amber-700/30 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
+                      <li key={`${f.name}-rec`} className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-2.5 py-1.5 animate-in fade-in-0 duration-150">
                         <div className="flex items-start gap-1.5">
                           <ShieldAlert size={11} className="text-amber-400 shrink-0 mt-0.5" />
-                          <div className="text-amber-300 text-[10px] leading-relaxed">
+                          <div className="text-amber-600 dark:text-amber-400 text-[10px] leading-relaxed">
                             <div className="font-semibold mb-0.5">Optional columns absent (reduced functionality):</div>
                             {(w?.recommended ?? []).map((m: string) => <div key={m}>• {m}</div>)}
                           </div>
@@ -249,17 +248,17 @@ export function Sidebar() {
           )}
         </div>
 
-        <Separator className="bg-slate-700/60" />
+        <Separator className="bg-border" />
 
         {/* ── Conneqt Mapping ───────────────────────────────────── */}
         <div>
-          <Label className="text-slate-200 font-semibold text-sm mb-2 block">
+          <Label className="text-foreground font-semibold text-sm mb-2 block">
             Conneqt Cost Mapping{" "}
-            <span className="text-slate-500 font-normal">(optional)</span>
+            <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2.5 transition-colors duration-150">
-            <Upload size={14} className="text-slate-400 shrink-0" />
-            <span className={`text-xs flex-1 truncate ${conneqtMappingFile ? "text-slate-200" : "text-slate-400"}`}>
+          <label className="flex items-center gap-2 cursor-pointer bg-muted hover:bg-accent rounded-xl px-3 py-2.5 transition-colors duration-150">
+            <Upload size={14} className="text-muted-foreground shrink-0" />
+            <span className={`text-xs flex-1 truncate ${conneqtMappingFile ? "text-foreground" : "text-muted-foreground"}`}>
               {conneqtMappingFile ? conneqtMappingFile.name : "Upload mapping .xlsx"}
             </span>
             {conneqtMappingFile && <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />}
@@ -271,24 +270,24 @@ export function Sidebar() {
           {conneqtMappingFile && (
             <button
               onClick={() => setConneqtMappingFile(null)}
-              className="text-xs text-slate-500 hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
             >
               <X size={11} /> Remove
             </button>
           )}
         </div>
 
-        <Separator className="bg-slate-700/60" />
+        <Separator className="bg-border" />
 
         {/* ── Spartan ───────────────────────────────────────────── */}
         <div>
-          <Label className="text-slate-200 font-semibold text-sm mb-2 block">
+          <Label className="text-foreground font-semibold text-sm mb-2 block">
             D2 Spartan{" "}
-            <span className="text-slate-500 font-normal">(optional)</span>
+            <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2.5 transition-colors duration-150">
-            <Upload size={14} className="text-slate-400 shrink-0" />
-            <span className={`text-xs flex-1 truncate ${spartanFile ? "text-slate-200" : "text-slate-400"}`}>
+          <label className="flex items-center gap-2 cursor-pointer bg-muted hover:bg-accent rounded-xl px-3 py-2.5 transition-colors duration-150">
+            <Upload size={14} className="text-muted-foreground shrink-0" />
+            <span className={`text-xs flex-1 truncate ${spartanFile ? "text-foreground" : "text-muted-foreground"}`}>
               {spartanFile ? spartanFile.name : "Upload Spartan .xlsx"}
             </span>
             {spartanFile && <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />}
@@ -300,24 +299,24 @@ export function Sidebar() {
           {spartanFile && (
             <button
               onClick={() => setSpartanFile(null)}
-              className="text-xs text-slate-500 hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
             >
               <X size={11} /> Remove
             </button>
           )}
         </div>
 
-        <Separator className="bg-slate-700/60" />
+        <Separator className="bg-border" />
 
         {/* ── Payroll ───────────────────────────────────────────── */}
         <div>
-          <Label className="text-slate-200 font-semibold text-sm mb-2 block">
+          <Label className="text-foreground font-semibold text-sm mb-2 block">
             Payroll{" "}
-            <span className="text-slate-500 font-normal">(optional)</span>
+            <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
-          <label className="flex items-center gap-2 cursor-pointer bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2.5 transition-colors duration-150">
-            <Upload size={14} className="text-slate-400 shrink-0" />
-            <span className={`text-xs flex-1 truncate ${payrollFile ? "text-slate-200" : "text-slate-400"}`}>
+          <label className="flex items-center gap-2 cursor-pointer bg-muted hover:bg-accent rounded-xl px-3 py-2.5 transition-colors duration-150">
+            <Upload size={14} className="text-muted-foreground shrink-0" />
+            <span className={`text-xs flex-1 truncate ${payrollFile ? "text-foreground" : "text-muted-foreground"}`}>
               {payrollFile ? payrollFile.name : "Upload Payroll .xlsx"}
             </span>
             {payrollFile && <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />}
@@ -329,7 +328,7 @@ export function Sidebar() {
           {payrollFile && (
             <button
               onClick={() => setPayrollFile(null)}
-              className="text-xs text-slate-500 hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
+              className="text-xs text-muted-foreground hover:text-red-400 mt-1.5 flex items-center gap-1 transition-colors"
             >
               <X size={11} /> Remove
             </button>
@@ -337,19 +336,19 @@ export function Sidebar() {
 
           <div className="mt-3 space-y-2">
             <div>
-              <Label className="text-slate-400 text-xs mb-1 block">Cycle start</Label>
+              <Label className="text-muted-foreground text-xs mb-1 block">Cycle start</Label>
               <Input
                 type="date" value={payrollStart}
                 onChange={(e) => setPayrollStart(e.target.value)}
-                className="bg-slate-800 border-slate-600 text-slate-200 text-sm h-9 focus:border-blue-500 transition-colors"
+                className="bg-muted border-border text-foreground text-sm h-9 focus:border-blue-500 transition-colors"
               />
             </div>
             <div>
-              <Label className="text-slate-400 text-xs mb-1 block">Cycle end</Label>
+              <Label className="text-muted-foreground text-xs mb-1 block">Cycle end</Label>
               <Input
                 type="date" value={payrollEnd}
                 onChange={(e) => setPayrollEnd(e.target.value)}
-                className="bg-slate-800 border-slate-600 text-slate-200 text-sm h-9 focus:border-blue-500 transition-colors"
+                className="bg-muted border-border text-foreground text-sm h-9 focus:border-blue-500 transition-colors"
               />
             </div>
           </div>
@@ -357,9 +356,9 @@ export function Sidebar() {
 
         {/* ── Error ─────────────────────────────────────────────── */}
         {errorMsg && (
-          <Alert className="bg-red-900/40 border-red-700/60 py-2.5 px-3">
+          <Alert className="bg-destructive/10 border-destructive/30 py-2.5 px-3">
             <AlertCircle size={14} className="text-red-400" />
-            <AlertDescription className="text-xs text-red-300 ml-1">{errorMsg}</AlertDescription>
+            <AlertDescription className="text-xs text-destructive ml-1">{errorMsg}</AlertDescription>
           </Alert>
         )}
 
@@ -368,7 +367,7 @@ export function Sidebar() {
           <Button
             onClick={handleGenerate}
             disabled={isPending || hrmsFiles.length < 2}
-            className="w-full font-semibold text-sm py-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 text-white border-0 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 disabled:shadow-none"
+            className="w-full font-semibold text-sm py-5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-200 text-white border-0 disabled:from-muted disabled:to-muted disabled:text-muted-foreground disabled:shadow-none"
           >
             {isPending ? (
               <><Loader2 size={15} className="animate-spin mr-2" />Processing…</>
@@ -377,7 +376,7 @@ export function Sidebar() {
             )}
           </Button>
           {hrmsFiles.length >= 2 && !isPending && (
-            <p className="text-center text-slate-500 text-xs mt-2">
+            <p className="text-center text-muted-foreground text-xs mt-2">
               {hrmsFiles.length} snapshots ready
             </p>
           )}
