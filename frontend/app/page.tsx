@@ -35,10 +35,9 @@ function AnomalyBadge({ count }: { count: number }) {
   );
 }
 
-function DashboardContent() {
+function DashboardContent({ onTabChange }: { onTabChange: (tab: string) => void }) {
   const { data, anomalies, chatOpen, setChatOpen } = useDashboardStore();
   const { generate: generateCommentary, commentaryStreaming } = useCommentary();
-  const [activeTab, setActiveTab] = useState("overall");
 
   const chartRef = useRef<HTMLDivElement>(null);
   const { generate: generateReport, progress: reportProgress, isGenerating } = useReportGeneration(chartRef);
@@ -52,25 +51,11 @@ function DashboardContent() {
     done:       "Downloaded!",
   };
 
-  const currentTabLabel = TABS.find((t) => t.value === activeTab)?.label ?? "Overview";
-
-  // Dark mode state
-  const [isDark, setIsDark] = useState(false);
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains("dark"));
-  }, []);
-  const toggleTheme = () => {
-    const next = !isDark;
-    setIsDark(next);
-    document.documentElement.classList.toggle("dark", next);
-  };
-
   return (
     <>
-      <Header currentTab={currentTabLabel} onToggleTheme={toggleTheme} isDark={isDark} />
-      <div className="flex flex-1 min-h-0">
-        <div className="flex-1 min-w-0 overflow-y-auto p-6 lg:p-8">
-          <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="flex flex-1 min-h-0">
+      <div className="flex-1 min-w-0 overflow-y-auto p-6 lg:p-8">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Validation warnings */}
             {data?.validation_warnings && data.validation_warnings.length > 0 && (
               <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
@@ -123,7 +108,7 @@ function DashboardContent() {
               </Button>
             </div>
 
-            <Tabs defaultValue="overall" onValueChange={setActiveTab}>
+            <Tabs defaultValue="overall" onValueChange={onTabChange}>
               <TabsList className="mb-4 bg-card border border-border rounded-xl shadow-sm p-1 gap-0.5">
                 {TABS.map((t) => (
                   <TabsTrigger
@@ -228,11 +213,27 @@ function LoadingScreen() {
 export default function Home() {
   const { data, isLoading } = useDashboardStore();
 
+  // Dark mode state — lifted here so Header always has it
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+  };
+
+  const [activeTab, setActiveTab] = useState("overall");
+  const currentTabLabel = TABS.find((t) => t.value === activeTab)?.label ?? "Overview";
+
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />
 
       <div className="flex-1 min-w-0 flex flex-col">
+        <Header currentTab={data ? currentTabLabel : "Home"} onToggleTheme={toggleTheme} isDark={isDark} />
+
         {isLoading ? (
           <main className="flex-1 p-6 lg:p-8">
             <LoadingScreen />
@@ -257,7 +258,7 @@ export default function Home() {
             </div>
           </main>
         ) : (
-          <DashboardContent />
+          <DashboardContent onTabChange={setActiveTab} />
         )}
       </div>
 
