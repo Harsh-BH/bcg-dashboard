@@ -67,10 +67,10 @@ export function OverallView() {
     <div className="space-y-6">
       <AnomalyAlertList tab="overall" />
       {/* Trend chart */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border bg-card">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-base font-semibold text-slate-800">
+            <CardTitle className="text-base font-semibold text-foreground">
               Headcount trend
             </CardTitle>
             <Select value={metric} onValueChange={(v) => setMetric(v as typeof metric)}>
@@ -93,10 +93,10 @@ export function OverallView() {
       </Card>
 
       {/* MoM overview table */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border bg-card">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold text-slate-800">
+            <CardTitle className="text-base font-semibold text-foreground">
               Month-on-month overview
             </CardTitle>
             <Button
@@ -149,9 +149,9 @@ export function OverallView() {
       </Card>
 
       {/* Pair preview with drill-down */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border bg-card">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800">
+          <CardTitle className="text-base font-semibold text-foreground">
             Detailed pair preview
           </CardTitle>
           <p className="text-xs text-slate-500">Click a headcount number to see the employee list</p>

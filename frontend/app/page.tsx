@@ -6,6 +6,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, MessageSquare, Sparkles, FileDown, Loader2, CheckCircle2 } from "lucide-react";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { Header } from "@/components/layout/Header";
+import { ActivityPanel } from "@/components/layout/ActivityPanel";
+import { StatCards } from "@/components/dashboard/StatCards";
 import { OverallView } from "@/components/tabs/OverallView";
 import { HrmsWalk } from "@/components/tabs/HrmsWalk";
 import { SpanMovement } from "@/components/tabs/SpanMovement";
@@ -35,12 +38,11 @@ function AnomalyBadge({ count }: { count: number }) {
 function DashboardContent() {
   const { data, anomalies, chatOpen, setChatOpen } = useDashboardStore();
   const { generate: generateCommentary, commentaryStreaming } = useCommentary();
+  const [activeTab, setActiveTab] = useState("overall");
 
-  // Chart ref for html-to-image capture in PDF export
   const chartRef = useRef<HTMLDivElement>(null);
   const { generate: generateReport, progress: reportProgress, isGenerating } = useReportGeneration(chartRef);
 
-  // Anomaly counts per tab
   const anomalyCount = (tab: string) => anomalies.filter((a) => a.tab === tab).length;
 
   const progressLabels: Record<string, string> = {
@@ -50,87 +52,112 @@ function DashboardContent() {
     done:       "Downloaded!",
   };
 
+  const currentTabLabel = TABS.find((t) => t.value === activeTab)?.label ?? "Overview";
+
+  // Dark mode state
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle("dark", next);
+  };
+
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
-      {/* Validation warnings */}
-      {data?.validation_warnings && data.validation_warnings.length > 0 && (
-        <Alert className="border-amber-200 bg-amber-50">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-700 text-xs">
-            <ul className="list-disc list-inside space-y-0.5">
-              {data.validation_warnings.map((w, i) => (
-                <li key={i}>
-                  <span className="font-mono">{w.file}</span>: {w.message}
-                </li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
+    <>
+      <Header currentTab={currentTabLabel} onToggleTheme={toggleTheme} isDark={isDark} />
+      <div className="flex flex-1 min-h-0">
+        <div className="flex-1 min-w-0 overflow-y-auto p-6 lg:p-8">
+          <div className="space-y-6 max-w-7xl mx-auto">
+            {/* Validation warnings */}
+            {data?.validation_warnings && data.validation_warnings.length > 0 && (
+              <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-700 dark:text-amber-300 text-xs">
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {data.validation_warnings.map((w, i) => (
+                      <li key={i}>
+                        <span className="font-mono">{w.file}</span>: {w.message}
+                      </li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
 
-      {/* AI action bar */}
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={generateCommentary}
-          disabled={commentaryStreaming}
-          className="gap-1.5 text-xs border-slate-200 hover:border-[hsl(var(--table-header))] hover:text-[hsl(var(--table-header))]"
-        >
-          {commentaryStreaming
-            ? <Loader2 size={13} className="animate-spin" />
-            : <Sparkles size={13} />
-          }
-          Generate Insights
-        </Button>
+            {/* Stat cards */}
+            {data && <StatCards trend={data.trend} />}
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={generateReport}
-          disabled={isGenerating}
-          className="gap-1.5 text-xs border-slate-200 hover:border-[hsl(var(--table-header))] hover:text-[hsl(var(--table-header))]"
-        >
-          {reportProgress === "done"
-            ? <CheckCircle2 size={13} className="text-emerald-500" />
-            : isGenerating
-              ? <Loader2 size={13} className="animate-spin" />
-              : <FileDown size={13} />
-          }
-          {isGenerating ? (progressLabels[reportProgress] ?? "Generating…") : "Export Report"}
-        </Button>
-      </div>
+            {/* AI action bar */}
+            <div className="flex items-center justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateCommentary}
+                disabled={commentaryStreaming}
+                className="gap-1.5 text-xs border-border hover:border-primary hover:text-primary"
+              >
+                {commentaryStreaming
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <Sparkles size={13} />
+                }
+                Generate Insights
+              </Button>
 
-      <Tabs defaultValue="overall">
-        <TabsList className="mb-4 bg-white border border-slate-200 rounded-xl shadow-sm p-1 gap-0.5">
-          {TABS.map((t) => (
-            <TabsTrigger
-              key={t.value}
-              value={t.value}
-              className="rounded-lg text-sm font-medium transition-all duration-150 data-[state=active]:bg-[hsl(var(--table-header))] data-[state=active]:text-white data-[state=active]:shadow-sm hover:bg-slate-100 data-[state=active]:hover:bg-[hsl(var(--table-header))]"
-            >
-              {t.label}
-              <AnomalyBadge count={anomalyCount(t.value)} />
-            </TabsTrigger>
-          ))}
-        </TabsList>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={generateReport}
+                disabled={isGenerating}
+                className="gap-1.5 text-xs border-border hover:border-primary hover:text-primary"
+              >
+                {reportProgress === "done"
+                  ? <CheckCircle2 size={13} className="text-emerald-500" />
+                  : isGenerating
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <FileDown size={13} />
+                }
+                {isGenerating ? (progressLabels[reportProgress] ?? "Generating…") : "Export Report"}
+              </Button>
+            </div>
 
-        {/* Pass chartRef into OverallView so it wraps the chart for PDF capture */}
-        <TabsContent value="overall" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-          <div ref={chartRef}>
-            <OverallView />
+            <Tabs defaultValue="overall" onValueChange={setActiveTab}>
+              <TabsList className="mb-4 bg-card border border-border rounded-xl shadow-sm p-1 gap-0.5">
+                {TABS.map((t) => (
+                  <TabsTrigger
+                    key={t.value}
+                    value={t.value}
+                    className="rounded-lg text-sm font-medium transition-all duration-150 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm hover:bg-muted data-[state=active]:hover:bg-primary"
+                  >
+                    {t.label}
+                    <AnomalyBadge count={anomalyCount(t.value)} />
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              <TabsContent value="overall" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+                <div ref={chartRef}>
+                  <OverallView />
+                </div>
+              </TabsContent>
+              <TabsContent value="hrms-walk" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+                <HrmsWalk />
+              </TabsContent>
+              <TabsContent value="span" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+                <SpanMovement />
+              </TabsContent>
+              <TabsContent value="spartan" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
+                <SpartanChecks />
+              </TabsContent>
+            </Tabs>
           </div>
-        </TabsContent>
-        <TabsContent value="hrms-walk" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-          <HrmsWalk />
-        </TabsContent>
-        <TabsContent value="span" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-          <SpanMovement />
-        </TabsContent>
-        <TabsContent value="spartan" className="animate-in fade-in-0 slide-in-from-bottom-1 duration-200">
-          <SpartanChecks />
-        </TabsContent>
-      </Tabs>
+        </div>
+
+        {/* Right activity panel */}
+        <ActivityPanel />
+      </div>
 
       {/* Floating chat button */}
       <button
@@ -146,7 +173,7 @@ function DashboardContent() {
           </span>
         )}
       </button>
-    </div>
+    </>
   );
 }
 
@@ -180,44 +207,41 @@ function LoadingScreen() {
 
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[60vh] gap-6 select-none">
-      {/* Spinning ring */}
       <div className="relative w-16 h-16">
-        <div className="absolute inset-0 rounded-full border-4 border-slate-200" />
-        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-blue-500 animate-spin" />
+        <div className="absolute inset-0 rounded-full border-4 border-muted" />
+        <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary animate-spin" />
       </div>
-
-      {/* Cycling verb */}
       <div className="text-center">
-        <p className="text-slate-700 font-semibold text-base tabular-nums min-w-[220px]">
+        <p className="text-foreground font-semibold text-base tabular-nums min-w-[220px]">
           {LOADING_VERBS[verbIdx].replace("…", "").trimEnd()}
-          <span className="text-blue-500">{".".repeat(dots + 1)}</span>
+          <span className="text-primary">{".".repeat(dots + 1)}</span>
         </p>
-        <p className="text-slate-400 text-xs mt-1">Processing your HRMS snapshots</p>
+        <p className="text-muted-foreground text-xs mt-1">Processing your HRMS snapshots</p>
       </div>
-
-      {/* Progress bar */}
-      <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
-        <div className="h-full bg-blue-500 rounded-full animate-[loading-bar_2s_ease-in-out_infinite]" />
+      <div className="w-48 h-1 bg-muted rounded-full overflow-hidden">
+        <div className="h-full bg-primary rounded-full animate-[loading-bar_2s_ease-in-out_infinite]" />
       </div>
     </div>
   );
 }
 
 export default function Home() {
-  const { data, chatOpen, isLoading } = useDashboardStore();
+  const { data, isLoading } = useDashboardStore();
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
 
-      <main className="flex-1 min-w-0 overflow-y-auto p-6 lg:p-8">
+      <div className="flex-1 min-w-0 flex flex-col">
         {isLoading ? (
-          <LoadingScreen />
+          <main className="flex-1 p-6 lg:p-8">
+            <LoadingScreen />
+          </main>
         ) : !data ? (
-          <div className="flex flex-col items-center justify-center h-full min-h-[60vh] text-center gap-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-10 shadow-sm max-w-md">
-              <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <main className="flex-1 flex items-center justify-center p-6 lg:p-8">
+            <div className="rounded-2xl border border-border bg-card p-10 shadow-sm max-w-md text-center">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                   <line x1="16" y1="13" x2="8" y2="13"/>
@@ -225,19 +249,19 @@ export default function Home() {
                   <polyline points="10 9 9 9 8 9"/>
                 </svg>
               </div>
-              <h2 className="text-slate-800 font-semibold text-lg mb-2">No data loaded</h2>
-              <p className="text-slate-500 text-sm leading-relaxed">
+              <h2 className="text-foreground font-semibold text-lg mb-2">No data loaded</h2>
+              <p className="text-muted-foreground text-sm leading-relaxed">
                 Upload at least 2 HRMS snapshot files using the sidebar, then click{" "}
-                <strong className="text-slate-700">Generate Dashboard</strong>.
+                <strong className="text-foreground">Generate Dashboard</strong>.
               </p>
             </div>
-          </div>
+          </main>
         ) : (
           <DashboardContent />
         )}
-      </main>
+      </div>
 
-      {/* AI overlays — rendered outside main so they sit above everything */}
+      {/* AI overlays */}
       <ChatDrawer />
       <CommentaryModal />
     </div>
