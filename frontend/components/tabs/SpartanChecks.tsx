@@ -20,23 +20,23 @@ function MetricCard({
   sub?: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm flex flex-col gap-0.5">
-      <span className="text-xs text-slate-500">{label}</span>
-      <span className="text-2xl font-bold tabular-nums text-slate-800">
+    <div className="rounded-xl border border-border bg-card px-4 py-3 shadow-sm flex flex-col gap-0.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-2xl font-bold tabular-nums text-foreground">
         {typeof value === "number" ? value.toLocaleString() : value}
       </span>
-      {sub && <span className="text-xs text-slate-400">{sub}</span>}
+      {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
     </div>
   );
 }
 
 function SimpleTable({ rows }: { rows: Record<string, unknown>[] }) {
-  if (!rows.length) return <p className="text-sm text-slate-500">No data</p>;
+  if (!rows.length) return <p className="text-sm text-muted-foreground">No data</p>;
   const keys = Object.keys(rows[0]);
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-xs">
-        <thead className="bg-slate-800 text-white">
+        <thead className="bg-[hsl(var(--table-header))] text-white">
           <tr>
             {keys.map((k, i) => (
               <th key={k} className={`px-3 py-2 font-semibold ${i === 0 ? "text-left" : "text-right"}`}>{k}</th>
@@ -45,12 +45,12 @@ function SimpleTable({ rows }: { rows: Record<string, unknown>[] }) {
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} className="border-b border-slate-100 hover:bg-slate-50">
+            <tr key={ri} className="border-b border-border hover:bg-muted/50">
               {keys.map((k, ci) => {
                 const v = row[k];
                 const display = typeof v === "number" ? v.toLocaleString() : String(v ?? "—");
                 return (
-                  <td key={k} className={`px-3 py-1.5 text-slate-700 ${ci === 0 ? "text-left" : "text-right tabular-nums"}`}>
+                  <td key={k} className={`px-3 py-1.5 text-foreground ${ci === 0 ? "text-left" : "text-right tabular-nums"}`}>
                     {display}
                   </td>
                 );
@@ -66,9 +66,9 @@ function SimpleTable({ rows }: { rows: Record<string, unknown>[] }) {
 function PayrollSection({ payroll }: { payroll: PayrollChecksData }) {
   if (!payroll.payroll_available) {
     return (
-      <Alert className="border-slate-200 bg-slate-50">
-        <Info className="h-4 w-4 text-slate-400" />
-        <AlertDescription className="text-slate-500 text-xs">
+      <Alert className="border-border bg-muted/50">
+        <Info className="h-4 w-4 text-muted-foreground" />
+        <AlertDescription className="text-muted-foreground text-xs">
           {payroll.spartan_required
             ? "Upload a Spartan file to enable payroll cross-check."
             : "No payroll file uploaded. Upload a payroll file to run the Spartan vs Payroll cross-check."}
@@ -82,7 +82,7 @@ function PayrollSection({ payroll }: { payroll: PayrollChecksData }) {
   return (
     <div className="space-y-4">
       {payroll.payroll_cycle_start && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Payroll cycle: {payroll.payroll_cycle_start} → {payroll.payroll_cycle_end}
         </p>
       )}
@@ -114,7 +114,7 @@ function PayrollSection({ payroll }: { payroll: PayrollChecksData }) {
       {(payroll.flagged?.length ?? 0) > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-700">
+            <p className="text-sm font-semibold text-foreground">
               Flagged employees ({flagged.toLocaleString()})
             </p>
             <Button
@@ -141,9 +141,9 @@ function PayrollSection({ payroll }: { payroll: PayrollChecksData }) {
 function SpartanSection({ checks, snapshotLabel }: { checks: SpartanChecksData; snapshotLabel: string }) {
   if (!checks.spartan_available) {
     return (
-      <Alert className="border-slate-200 bg-slate-50">
-        <Info className="h-4 w-4 text-slate-400" />
-        <AlertDescription className="text-slate-500 text-xs">
+      <Alert className="border-border bg-muted/50">
+        <Info className="h-4 w-4 text-muted-foreground" />
+        <AlertDescription className="text-muted-foreground text-xs">
           No Spartan file uploaded. Upload a Spartan file to see exit and attrition checks.
         </AlertDescription>
       </Alert>
@@ -153,7 +153,7 @@ function SpartanSection({ checks, snapshotLabel }: { checks: SpartanChecksData; 
   return (
     <div className="space-y-4">
       {checks.spartan_report && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Detected sheet: <span className="font-mono">{checks.spartan_report.sheet_used}</span>
           {" "}· header row {checks.spartan_report.header_row}
         </p>
@@ -169,7 +169,7 @@ function SpartanSection({ checks, snapshotLabel }: { checks: SpartanChecksData; 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-slate-700">
+              <p className="text-sm font-semibold text-foreground">
                 In HRMS but should have exited
               </p>
               <Badge variant="destructive" className="text-xs">{checks.offenders_hrms_count}</Badge>
@@ -211,7 +211,7 @@ function SpartanSection({ checks, snapshotLabel }: { checks: SpartanChecksData; 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-slate-700">
+              <p className="text-sm font-semibold text-foreground">
                 Overdue in Spartan (not yet exited)
               </p>
               <Badge variant="outline" className="border-amber-400 text-amber-700 text-xs">
@@ -249,9 +249,9 @@ export function SpartanChecks() {
 
   if (entries.length === 0) {
     return (
-      <Alert className="border-slate-200 bg-slate-50">
-        <Info className="h-4 w-4 text-slate-400" />
-        <AlertDescription className="text-slate-500 text-sm">
+      <Alert className="border-border bg-muted/50">
+        <Info className="h-4 w-4 text-muted-foreground" />
+        <AlertDescription className="text-muted-foreground text-sm">
           No Spartan or Payroll data available. Upload a Spartan or Payroll file and re-process.
         </AlertDescription>
       </Alert>
@@ -269,9 +269,9 @@ export function SpartanChecks() {
       <AnomalyAlertList tab="spartan" />
       {/* Spartan section — one per snapshot */}
       {entries.map(([snapshotLabel, checks]) => (
-        <Card key={snapshotLabel} className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+        <Card key={snapshotLabel} className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold text-slate-800">
+            <CardTitle className="text-base font-semibold text-foreground">
               Spartan cross-check — {snapshotLabel}
             </CardTitle>
           </CardHeader>
@@ -282,13 +282,13 @@ export function SpartanChecks() {
       ))}
 
       {/* Payroll section — one card, taken from first entry */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800">
+          <CardTitle className="text-base font-semibold text-foreground">
             Payroll reconciliation
           </CardTitle>
           {firstChecks.payroll.payroll_available && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Comparing HRMS ({lastLabel}) against uploaded payroll file
             </p>
           )}

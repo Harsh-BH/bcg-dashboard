@@ -58,12 +58,12 @@ export function CommentaryModal() {
         <div className="flex-1 overflow-y-auto pr-1">
           {!commentary && commentaryStreaming && (
             <div className="flex items-center justify-center py-16 gap-3">
-              <Loader2 size={20} className="animate-spin text-slate-400" />
-              <span className="text-slate-500 text-sm">Generating commentary…</span>
+              <Loader2 size={20} className="animate-spin text-muted-foreground" />
+              <span className="text-muted-foreground text-sm">Generating commentary…</span>
             </div>
           )}
           {commentary && (
-            <div className="prose prose-slate max-w-none prose-h2:text-base prose-h2:font-semibold prose-h2:text-slate-800 prose-h2:mt-5 prose-h2:mb-2 prose-p:text-sm prose-p:text-slate-700 prose-ul:text-sm prose-li:text-slate-700 prose-strong:text-slate-900">
+            <div className="prose prose-slate dark:prose-invert max-w-none prose-h2:text-base prose-h2:font-semibold prose-h2:text-foreground prose-h2:mt-5 prose-h2:mb-2 prose-p:text-sm prose-p:text-foreground prose-ul:text-sm prose-li:text-foreground prose-strong:text-foreground">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {commentary}
               </ReactMarkdown>

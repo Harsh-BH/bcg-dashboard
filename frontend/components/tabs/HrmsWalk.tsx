@@ -47,19 +47,19 @@ export function HrmsWalk() {
   return (
     <div className="space-y-6">
       <AnomalyAlertList tab="hrms-walk" />
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-slate-100">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 border-border">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-slate-800">
+          <CardTitle className="text-base font-semibold text-foreground">
             Detailed reconciliation
           </CardTitle>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             Click any headcount number in Baseline, Spartan exits, BAU attrition, New hires, or End-point
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Base</span>
+              <span className="text-xs text-muted-foreground">Base</span>
               <Select value={safeBase} onValueChange={(v) => { if (v) { setRecon(v, safeEnd); setDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -68,7 +68,7 @@ export function HrmsWalk() {
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500">Compare</span>
+              <span className="text-xs text-muted-foreground">Compare</span>
               <Select value={safeEnd} onValueChange={(v) => { if (v) { setRecon(safeBase, v); setDrillPeople(null); } }}>
                 <SelectTrigger className="w-48 h-9 text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -105,7 +105,7 @@ export function HrmsWalk() {
               downloadFilename={`reconciliation_${pairKey.replace(" → ", "_to_")}.xlsx`}
             />
           ) : (
-            <p className="text-sm text-slate-500">No data for this pair.</p>
+            <p className="text-sm text-muted-foreground">No data for this pair.</p>
           )}
         </CardContent>
       </Card>

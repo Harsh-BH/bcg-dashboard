@@ -51,8 +51,7 @@ export function ChatDrawer() {
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 z-50 w-[440px] max-w-[96vw] flex flex-col shadow-2xl animate-in slide-in-from-right-6 duration-300 ease-out"
-        style={{ background: "linear-gradient(160deg, #f8fafc 0%, #f1f5f9 100%)" }}
+      <div className="fixed right-0 top-0 bottom-0 z-50 w-[440px] max-w-[96vw] flex flex-col shadow-2xl animate-in slide-in-from-right-6 duration-300 ease-out bg-background"
       >
 
         {/* Header */}
@@ -97,12 +96,12 @@ export function ChatDrawer() {
           {/* Empty — no data */}
           {!hasData && (
             <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-16">
-              <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
-                <MessageSquare size={26} className="text-slate-300" />
+              <div className="w-16 h-16 rounded-2xl bg-card border border-border shadow-sm flex items-center justify-center">
+                <MessageSquare size={26} className="text-muted-foreground" />
               </div>
               <div>
-                <p className="text-slate-600 text-sm font-medium">No data loaded yet</p>
-                <p className="text-slate-400 text-xs mt-1">Upload HRMS files and generate the dashboard first.</p>
+                <p className="text-foreground text-sm font-medium">No data loaded yet</p>
+                <p className="text-muted-foreground text-xs mt-1">Upload HRMS files and generate the dashboard first.</p>
               </div>
             </div>
           )}
@@ -110,14 +109,14 @@ export function ChatDrawer() {
           {/* Suggested questions */}
           {hasData && chatMessages.length === 0 && (
             <div className="space-y-2 pt-2">
-              <p className="text-slate-400 text-[11px] text-center font-medium tracking-wide uppercase mb-4">
+              <p className="text-muted-foreground text-[11px] text-center font-medium tracking-wide uppercase mb-4">
                 Suggested questions
               </p>
               {SUGGESTED.map((q) => (
                 <button
                   key={q}
                   onClick={() => { setInput(q); textareaRef.current?.focus(); }}
-                  className="w-full text-left text-xs text-slate-600 bg-white hover:bg-rose-50 hover:text-[#5A002F] border border-slate-200 hover:border-rose-200 rounded-xl px-4 py-3 transition-all duration-150 shadow-sm hover:shadow-md"
+                  className="w-full text-left text-xs text-foreground bg-card hover:bg-rose-50 hover:text-[#5A002F] border border-border hover:border-rose-200 rounded-xl px-4 py-3 transition-all duration-150 shadow-sm hover:shadow-md"
                 >
                   <span className="mr-2 opacity-40">→</span>{q}
                 </button>
@@ -133,16 +132,16 @@ export function ChatDrawer() {
               <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center ring-2 ${
                 msg.role === "user"
                   ? "ring-[#5A002F]/20"
-                  : "ring-slate-200"
+                  : "ring-border"
               }`}
                 style={msg.role === "user"
                   ? { background: "linear-gradient(135deg, #5A002F, #8B0045)" }
-                  : { background: "linear-gradient(135deg, #f8fafc, #e2e8f0)" }
+                  : { background: "hsl(var(--muted))" }
                 }
               >
                 {msg.role === "user"
                   ? <User size={12} className="text-white" />
-                  : <Bot size={12} className="text-slate-500" />
+                  : <Bot size={12} className="text-muted-foreground" />
                 }
               </div>
 
@@ -150,7 +149,7 @@ export function ChatDrawer() {
               <div className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
                 msg.role === "user"
                   ? "text-white rounded-tr-sm"
-                  : "bg-white border border-slate-100 text-slate-800 rounded-tl-sm"
+                  : "bg-card border border-border text-foreground rounded-tl-sm"
               }`}
                 style={msg.role === "user"
                   ? { background: "linear-gradient(135deg, #5A002F, #8B0045)" }
@@ -159,16 +158,16 @@ export function ChatDrawer() {
               >
                 {msg.role === "assistant" && msg.content === "" ? (
                   <span className="flex gap-1.5 items-center py-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:0ms]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:120ms]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground animate-bounce [animation-delay:240ms]" />
                   </span>
                 ) : msg.role === "assistant" ? (
-                  <div className="prose prose-sm prose-slate max-w-none
+                  <div className="prose prose-sm prose-slate dark:prose-invert max-w-none
                     prose-p:my-1 prose-p:leading-relaxed
                     prose-ul:my-1.5 prose-li:my-0.5
-                    prose-strong:text-slate-900 prose-strong:font-semibold
-                    prose-code:bg-slate-100 prose-code:px-1 prose-code:rounded prose-code:text-xs">
+                    prose-strong:text-foreground prose-strong:font-semibold
+                    prose-code:bg-muted prose-code:px-1 prose-code:rounded prose-code:text-xs">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {msg.content}
                     </ReactMarkdown>
@@ -184,9 +183,9 @@ export function ChatDrawer() {
         </div>
 
         {/* Input bar */}
-        <div className="px-4 pb-4 pt-3 border-t border-slate-200/70 bg-white/60 backdrop-blur-sm">
-          <div className={`flex items-end gap-2 bg-white border rounded-2xl px-3 py-2 shadow-sm transition-all duration-200 ${
-            isStreaming ? "border-slate-200" : "border-slate-200 focus-within:border-[#5A002F]/40 focus-within:shadow-md focus-within:ring-2 focus-within:ring-[#5A002F]/8"
+        <div className="px-4 pb-4 pt-3 border-t border-border/70 bg-card/60 backdrop-blur-sm">
+          <div className={`flex items-end gap-2 bg-card border rounded-2xl px-3 py-2 shadow-sm transition-all duration-200 ${
+            isStreaming ? "border-border" : "border-border focus-within:border-[#5A002F]/40 focus-within:shadow-md focus-within:ring-2 focus-within:ring-[#5A002F]/8"
           }`}>
             <textarea
               ref={textareaRef}
@@ -196,7 +195,7 @@ export function ChatDrawer() {
               onKeyDown={handleKeyDown}
               placeholder={hasData ? "Ask about your headcount data…" : "Load data first…"}
               disabled={!hasData || isStreaming}
-              className="flex-1 resize-none bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none min-h-[34px] max-h-[120px] py-1.5 px-1 disabled:opacity-40 leading-relaxed"
+              className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none min-h-[34px] max-h-[120px] py-1.5 px-1 disabled:opacity-40 leading-relaxed"
               style={{ fieldSizing: "content" } as React.CSSProperties}
             />
             <button
@@ -208,7 +207,7 @@ export function ChatDrawer() {
               <Send size={13} />
             </button>
           </div>
-          <p className="text-slate-400 text-[10px] mt-2 text-center">
+          <p className="text-muted-foreground text-[10px] mt-2 text-center">
             Enter to send · Shift+Enter for new line
           </p>
         </div>

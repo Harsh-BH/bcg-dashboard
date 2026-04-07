@@ -24,7 +24,7 @@ export function AnomalyAlertList({ tab }: Props) {
 
   if (anomalyLoading) {
     return (
-      <div className="flex items-center gap-2 text-slate-400 text-xs py-2 mb-4">
+      <div className="flex items-center gap-2 text-muted-foreground text-xs py-2 mb-4">
         <Loader2 size={12} className="animate-spin" />
         Scanning for anomalies…
       </div>
@@ -37,7 +37,7 @@ export function AnomalyAlertList({ tab }: Props) {
     <div className="mb-5">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center gap-2 mb-2 text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors"
+        className="flex items-center gap-2 mb-2 text-xs font-semibold text-foreground hover:text-foreground transition-colors"
       >
         <AlertTriangle size={13} className="text-amber-500" />
         {anomalies.length} Anomal{anomalies.length !== 1 ? "ies" : "y"} Detected
@@ -55,20 +55,20 @@ export function AnomalyAlertList({ tab }: Props) {
                   <AlertTriangle size={14} className={`shrink-0 mt-0.5 ${cfg.icon}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-800">{a.title}</span>
+                      <span className="text-sm font-semibold text-foreground">{a.title}</span>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full uppercase ${cfg.badge}`}>
                         {a.severity}
                       </span>
                     </div>
                     <button
                       onClick={() => setExpanded(expanded === id ? null : id)}
-                      className="text-xs text-slate-500 hover:text-slate-700 mt-0.5 flex items-center gap-1 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-foreground mt-0.5 flex items-center gap-1 transition-colors"
                     >
                       {expanded === id ? "Hide details" : "Show details"}
                       {expanded === id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                     </button>
                     {expanded === id && (
-                      <p className="text-xs text-slate-600 mt-2 leading-relaxed animate-in fade-in-0 slide-in-from-top-1 duration-150">
+                      <p className="text-xs text-foreground mt-2 leading-relaxed animate-in fade-in-0 slide-in-from-top-1 duration-150">
                         {a.explanation}
                       </p>
                     )}
